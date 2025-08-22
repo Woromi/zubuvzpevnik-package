@@ -1,0 +1,140 @@
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{zubuvzpevnik}[2025-08-22 Úprava songs balíčku tak, aby vypadal jako Zubův zpěvník]
+
+% ==========================
+% Options
+% ==========================
+\DeclareOption*{%
+	\PassOptionsToPackage{\CurrentOption}{songs}%
+}
+\ProcessOptions\relax
+
+% ==========================
+% Required packages
+% ==========================
+\RequirePackage{songs}
+\RequirePackage{import}
+\RequirePackage[czech]{babel}
+\RequirePackage{etoolbox}
+\RequirePackage{xpatch}
+\RequirePackage{ifthen}
+\RequirePackage{fontspec}
+\RequirePackage[default]{opensans}
+\RequirePackage{roboto-mono}
+\RequirePackage{relsize}
+\RequirePackage[linktoc=all]{hyperref}
+\RequirePackage{calc}
+
+% ==========================
+% Internal defaults (overridable by class)
+% ==========================
+\newcommand{\zub@lyricfont}{}
+\newcommand{\zub@printchord}{}
+\newcommand{\zub@stitlefont}{}
+\newif\iflargepaper
+\largepaperfalse % default (A5 or smaller)
+
+% Hook up to songs package
+\renewcommand{\lyricfont}{\zub@lyricfont}
+\renewcommand{\printchord}{\zub@printchord}
+\renewcommand{\stitlefont}{\zub@stitlefont}
+\renewcommand{\notefont}{\it}
+
+% ==========================
+% Index setup
+% ==========================
+\newindex{obsah}{obsah/obsah}
+\indexsongsas{obsah}{\thepage}
+\newauthorindex{obsahAutor}{obsah/obsahAutor}
+\indexsongsas{obsahAutor}{\thepage}
+
+% ==========================
+% Layout inside songs
+% ==========================
+\baselineadj=2pt plus 2.5pt minus 0.5pt
+\renewcommand{\clineparams}{
+	\baselineskip=10pt
+	\lineskiplimit=0.5pt
+	\lineskip=0.5pt
+}
+\versesep=12pt plus 2pt minus 6pt
+\spenalty=-10000 % Pisnicka na nove strance
+\setlength{\sbarheight}{0pt} % Odstraneni vodorovne cary pred a za pisnickou
+\setlength{\songnumwidth}{0cm} % Zrusi cislovani pisnicek
+
+% ==========================
+% Capo
+% ==========================
+\renewcommand\capo[1]{%
+	\iftranscapos
+	\transpose{#1}%
+	\else
+	\vspace{-1.5em}\musicnote{\textit{Capo #1}}%
+	\fi
+}
+
+% ==========================
+% Song metadata (key, tuning)
+% ==========================
+\newcommand{\key}{}
+\newsongkey{key}{\def\key{}}{\def\key{\small Key: #1\par}}
+
+\newcommand{\tuning}{}
+\newsongkey{tun}{\def\tuning{}}{\def\tuning{\small Tuning: #1\par}}
+
+% Show song title
+\renewcommand\makeprelude{%
+	\Large\bfseries\songtitle \mdseries\smalleronsmallpage[1](\songauthors)
+}
+\renewcommand{\extendprelude}{{\showrefs\key}}
+
+% ==========================
+% Environments
+% ==========================
+\newlength{\secondvoicewrapper}
+\setlength{\secondvoicewrapper}{\widthof{\itshape(}}
+\newcommand{\secondvoice}[1]{%
+	\leavevmode
+	\smash{%
+		\raisebox{-1em}[0pt][0pt]{%
+			\hspace*{-\secondvoicewrapper}%
+			\makebox[0pt][l]{\itshape (#1)}%
+			\hspace*{\secondvoicewrapper}%
+		}%
+	}%
+	\vadjust{\vskip1em}%
+}
+
+\newcommand{\smalleronsmallpage}[1][0.5]{%
+	\iflargepaper\else\smaller[#1]\fi
+}
+
+% ==========================
+% Chord diagram patches
+% ==========================
+% change barre position size and font to mono
+\patchcmd{\SB@fretnum}
+{\sffamily\fontsize\@xpt\@xpt\selectfont#1}
+{\ttfamily\small#1}{}{}
+
+\patchcmd{\SB@topempty}
+{\relax}
+{{\vrule\@width\z@\@height4.3333\p@\@depth.8333\p@}}{}{}
+
+% ==========================
+% Song includes
+% ==========================
+\providecommand{\rootpath}{/} % default, can override in project
+\newcommand{\includesong}[1]{\input{\rootpath songs/#1}}
+
+% ==========================
+% Song parts
+% ==========================
+
+\import{songpart/}{sloka.cfg}
+% Changed chorus environment to look more like a verse with 'R:'
+\import{songpart/}{refren.cfg}
+% Chords only songpart. The chords have a fixed width
+\import{songpart/}{instrumental.cfg}
+
+\endinput

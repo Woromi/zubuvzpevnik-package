@@ -1,0 +1,104 @@
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesClass{velkyzpevnik}[2025/08/22 Class for large A4 songbook]
+
+% ==========================
+% Base class
+% ==========================
+\LoadClass[a4paper]{article}
+
+% ==========================
+% Option handling
+% ==========================
+\DeclareOption*{%
+	\PassOptionsToPackage{\CurrentOption}{zubuvzpevnik}%
+}
+\ProcessOptions\relax
+
+% ==========================
+% Load base package
+% ==========================
+\RequirePackage{zubuvzpevnik}
+
+% ==========================
+% Page layout
+% ==========================
+\RequirePackage[
+	tmargin=0.7in,
+	bmargin=0.7in,
+	lmargin=0.5in,
+	rmargin=0.5in
+]{geometry}
+
+% ==========================
+% Language
+% ==========================
+\RequirePackage[czech]{babel}
+
+% ==========================
+% Song styling overrides
+% ==========================
+\renewcommand{\zub@lyricfont}{\ttfamily}
+\renewcommand{\zub@printchord}{\ttfamily\bfseries}
+\renewcommand{\zub@stitlefont}{\Huge}
+\largepapertrue
+
+% ==========================
+% Images
+% ==========================
+\RequirePackage{pdfpages}
+\RequirePackage{graphicx}
+\graphicspath{{\rootpath img/}}
+
+% ==========================
+% Header/Footer
+% ==========================
+\RequirePackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot[C]{\thepage} % Page numbers on outer corners
+\renewcommand{\headrulewidth}{0pt} % no header line
+\renewcommand{\footrulewidth}{0pt} % no footer line
+
+% ==========================
+% Front cover
+% ==========================
+\newcommand{\makefrontcover}{%
+	\clearpage
+	\pagestyle{empty}
+	\begin{titlepage}
+		\centering
+		\null\vfill
+		{\fontsize{62}{65}\bfseries\setmainfont{SKAUT Bold} \@title\par}
+		\vfill
+		\includegraphics{../img/kane}
+		\vfill
+		{\Large\setmainfont{TheMix C5 Bold} \@author\par}
+		{\Large\setmainfont{TheMix C5 Bold} \today\par}
+		\vfill
+	\end{titlepage}
+	
+	% Inside front cover = TOC
+	\clearpage
+	\pagestyle{empty}
+	{\large \showindex[1]{Obsah}{obsah}}
+%	{\large \showindex[1]{Obsah podle interpreta}{obsahAutor}}
+	% TODO: Obsah interpretu prohazuje slova v nazvu kapel (razeni podle prijmeni)
+	% TODO: Nechci seznam interpretu, ale seznam pisnicek setrizeny do sekci podle interpretu
+}
+
+
+\endinput
+
+% ==========================
+% Reset page numbering when songs begin
+% ==========================
+\RequirePackage{etoolbox}
+\newif\if@startsongsdone
+\@startsongsdonefalse
+\pretocmd{\songs}{%
+	\if@startsongsdone\else
+	\pagestyle{fancy}
+	\setcounter{page}{1}
+	\@startsongsdonetrue
+	\fi
+}{}{}
