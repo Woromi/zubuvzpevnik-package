@@ -91,7 +91,7 @@
 
 \newcommand{\usedchords}{}
 \newsongkey{chr}{\def\usedchords{}}{\def\usedchords{%
-		\raisebox{-0.7\height}[0pt][0pt]{#1}
+		\raisebox{-0.6\height}[0pt][0pt]{#1}
 }}
 
 \renewcommand{\extendprelude}{{%
@@ -103,18 +103,11 @@
 
 \renewcommand\makeprelude{%
 	\resettitles
+	\Large\bfseries\songtitle\space\mdseries\smalleronsmallpage[1](\songauthors)
 	\iflargepaper
-		\vbox to 0pt{%
-  			\hbox to \textwidth{%
-  				\hfill \parbox{\textwidth}{ 
-  					\raggedleft \usedchords \hspace{1cm} \raggedleft \extendprelude
-  					}
-  			}%
-			\vskip 0pt
-  		}%
+		\hfill \usedchords \hspace{1cm} \raggedleft \extendprelude
 	\else
 	\fi
-	\Large\bfseries\songtitle\space\mdseries\smalleronsmallpage[1](\songauthors)
 }
 
 % ==========================
