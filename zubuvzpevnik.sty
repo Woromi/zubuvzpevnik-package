@@ -48,6 +48,10 @@
 \newauthorindex{obsahAutor}{obsah/obsahAutor}
 \indexsongsas{obsahAutor}{\thepage}
 
+\extendprelude{
+	\indexentry{\songtitle\space(\songauthors)}
+}
+
 % ==========================
 % Layout inside songs
 % ==========================
@@ -77,16 +81,41 @@
 % Song metadata (key, tuning)
 % ==========================
 \newcommand{\key}{}
-\newsongkey{key}{\def\key{}}{\def\key{\small Key: #1\par}}
+\newsongkey{key}{\def\key{}}{\def\key{\small \bfseries{Key}: \mdseries#1\par}}
 
 \newcommand{\tuning}{}
-\newsongkey{tun}{\def\tuning{}}{\def\tuning{\small Tuning: #1\par}}
+\newsongkey{tun}{\def\tuning{}}{\def\tuning{\small \bfseries{Tuning}: \mdseries#1\par}}
 
-% Show song title
+\newcommand{\original}{}
+\newsongkey{ori}{\def\original{}}{\def\original{\small \bfseries{Original}: \mdseries#1\par}}
+
+\newcommand{\usedchords}{}
+\newsongkey{chr}{\def\usedchords{}}{\def\usedchords{%
+		\raisebox{-0.7\height}[0pt][0pt]{#1}
+}}
+
+\renewcommand{\extendprelude}{{%
+		\showrefs
+		\original
+		\tuning
+		\key
+	}}
+
 \renewcommand\makeprelude{%
-	\Large\bfseries\songtitle~ \mdseries\smalleronsmallpage[1](\songauthors)
+	\resettitles
+	\iflargepaper
+		\vbox to 0pt{%
+  			\hbox to \textwidth{%
+  				\hfill \parbox{\textwidth}{ 
+  					\raggedleft \usedchords \hspace{1cm} \raggedleft \extendprelude
+  					}
+  			}%
+			\vskip 0pt
+  		}%
+	\else
+	\fi
+	\Large\bfseries\songtitle\space\mdseries\smalleronsmallpage[1](\songauthors)
 }
-\renewcommand{\extendprelude}{{\showrefs\key}}
 
 % ==========================
 % Environments
