@@ -93,6 +93,11 @@
 	\clearpage
 	\pagestyle{empty}
 	{\large \showindex[1]{Obsah}{obsah}}
+	
+	% Start page numbering from the following page
+	\clearpage
+	\pagestyle{fancy}
+	\setcounter{page}{1}
 }
 
 % ==========================
@@ -114,20 +119,6 @@
 	\pagestyle{empty}
 	\newpage\ \newpage % keep space for back cover
 }
-
-% ==========================
-% Reset page numbering when songs begin
-% ==========================
-\RequirePackage{etoolbox}
-\newif\if@startsongsdone
-\@startsongsdonefalse
-\pretocmd{\songs}{%
-	\if@startsongsdone\else
-	\pagestyle{fancy}
-	\setcounter{page}{1}
-	\@startsongsdonetrue
-	\fi
-}{}{}
 
 % ==========================
 % Fill booklet pages (multiple of 4)
