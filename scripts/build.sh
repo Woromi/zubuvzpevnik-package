@@ -27,7 +27,7 @@ echo "Installing necessary packages..."
 "$SCRIPT_DIR/install.sh"
 
 echo "First iteration of lualatex..."
-lualatex "$1" > /dev/null
+lualatex "$1" > /dev/null 2>&1
 
 if [ -z "$indexFiles" ]; then
     echo "No index files specified, skipping index building."
