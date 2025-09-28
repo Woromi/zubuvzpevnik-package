@@ -71,9 +71,9 @@
 % ==========================
 \renewcommand\capo[1]{%
 	\iftranscapos
-	\transpose{#1}%
+		\transpose{#1}%
 	\else
-	\vspace{-1.5em}\musicnote{\textit{Capo #1}}%
+		\vspace{-1.5em}\musicnote{\textit{Capo #1}}%
 	\fi
 }
 
@@ -92,14 +92,14 @@
 \newcommand{\usedchords}{}
 \newsongkey{chr}{\def\usedchords{}}{\def\usedchords{%
 		\raisebox{-0.6\height}[0pt][0pt]{#1}
-}}
+	}}
 
 \renewcommand{\extendprelude}{{%
-		\showrefs
-		\original
-		\tuning
-		\key
-	}}
+			\showrefs
+			\original
+			\tuning
+			\key
+		}}
 
 \renewcommand\makeprelude{%
 	\resettitles

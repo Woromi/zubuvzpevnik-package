@@ -88,12 +88,12 @@
 		{\Large\setmainfont{TheMix C5 Bold} \@title~\the\year\par}
 		\vfill
 	\end{titlepage}
-	
+
 	% Inside front cover = TOC
 	\clearpage
 	\pagestyle{empty}
 	{\large \showindex[1]{Obsah}{obsah}}
-	
+
 	% Start page numbering from the following page
 	\clearpage
 	\pagestyle{fancy}
@@ -113,7 +113,7 @@
 		{\small \ifx\relax#1\else #1 \\ \fi Sestavil: \@author~\the\year{}}
 	\end{center}
 	\null
-	
+
 	% --- Back Cover ---
 	\clearpage
 	\pagestyle{empty}
@@ -129,9 +129,9 @@
 	\modulo{\numexpr \value{page}-1 \relax}{#1}%
 	\newcounter{extrablankpages}%
 	\ifnum\remainder=0
-	\setcounter{extrablankpages}{0}%
+		\setcounter{extrablankpages}{0}%
 	\else
-	\setcounter{extrablankpages}{\numexpr #1 - \remainder \relax}%
+		\setcounter{extrablankpages}{\numexpr #1 - \remainder \relax}%
 	\fi
 	\loop
 	\ifnum\value{extrablankpages}>0
