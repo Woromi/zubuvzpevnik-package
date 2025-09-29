@@ -128,6 +128,15 @@
 	\vadjust{\vskip1em}%
 }
 
+\newcommand{\voice}[1]{
+	\leavevmode
+	\rlap{
+		\hspace{\linewidth - \leftskip + 2em}
+		\llap{\small\textsc{#1}
+			\hspace{1em}}
+	}%
+}
+
 \newcommand{\smalleronsmallpage}[1][0.5]{%
 	\iflargepaper\else\smaller[#1]\fi
 }
