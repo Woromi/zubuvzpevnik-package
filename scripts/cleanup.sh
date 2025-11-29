@@ -1,6 +1,6 @@
 #!/bin/sh
 
-auxFiles=$(find . | grep -Ev '.git/' | grep -E '\.aux$|\.log$|\.out$|\.toc$|\.idx$|\.ilg$|\.ind$|\.sxc$|\.sbx$|\.sxd$')
+auxFiles=$(find . | grep -Ev '.git/' | grep -E '\.aux$|\.log$|\.out$|\.toc$|\.idx$|\.ilg$|\.ind$|\.sxc$|\.sbx$|\.sxd$|\.fls$|\.fdb_latexmk$')
 for file in $auxFiles; do
     rm -f "$file"
 done
