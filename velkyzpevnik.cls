@@ -85,7 +85,6 @@
 	{\large \showindex[1]{Obsah}{obsah}}
 	{\large \showindex[2]{Obsah podle interpreta}{obsahAutor}}
 	% TODO: Obsah interpretu prohazuje slova v nazvu kapel (razeni podle prijmeni)
-	% TODO: Nechci seznam interpretu, ale seznam pisnicek setrizeny do sekci podle interpretu
 
 	% Start page numbering from the following page
 	\clearpage
