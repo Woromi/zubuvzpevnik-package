@@ -70,7 +70,9 @@
 		\null\vfill
 		{\fontsize{62}{65}\bfseries\setmainfont{SKAUT Bold} \@title\par}
 		\vfill
-		\includegraphics{../img/kane}
+		\begin{center}
+		  \makebox[\textwidth]{\includegraphics[width=\paperwidth]{../img/titleImage2}}
+		\end{center}
 		\vfill
 		{\Large\setmainfont{TheMix C5 Bold} \@author\par}
 		{\Large\setmainfont{TheMix C5 Bold} \today\par}
@@ -81,7 +83,7 @@
 	\clearpage
 	\pagestyle{empty}
 	{\large \showindex[1]{Obsah}{obsah}}
-	%	{\large \showindex[1]{Obsah podle interpreta}{obsahAutor}}
+	{\large \showindex[2]{Obsah podle interpreta}{obsahAutor}}
 	% TODO: Obsah interpretu prohazuje slova v nazvu kapel (razeni podle prijmeni)
 	% TODO: Nechci seznam interpretu, ale seznam pisnicek setrizeny do sekci podle interpretu
 
