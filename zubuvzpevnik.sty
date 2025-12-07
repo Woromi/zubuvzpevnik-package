@@ -74,6 +74,25 @@
 }
 
 % ==========================
+% TODO: Czech chords
+% ==========================
+
+% Definice notových systémů
+\newcommand{\englishchords}{%
+  % Anglický systém: C D E F G A B
+  \notenames{A}{B}{C}{D}{E}{F}{G}%
+  % Křížky a béčka standardně
+}
+
+\newcommand{\czechchords}{%
+  % Český systém: C D E F G A H (B = H, Bb = B)
+  % Input: Co píšeme v .tex souboru
+  \notenamesin{A}{H}{C}{D}{E}{F}{G}%
+  % Output: Jak to má být zobrazeno
+  \notenamesout{A}{H}{C}{D}{E}{F}{G}%
+}
+
+% ==========================
 % Song metadata (key, tuning)
 % ==========================
 \newcommand{\key}{}
@@ -96,8 +115,8 @@
 \renewcommand{\extendprelude}{{%
 			\showrefs
 			\original
-			\tuning
 			\tempo
+			\tuning
 			\key
 		}}
 

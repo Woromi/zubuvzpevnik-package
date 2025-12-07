@@ -479,7 +479,8 @@ function genindex(fs, outname, authorindex)
             if authorindex then
                 local author, songtitle = buf:match("^(.-)%-%->(.*)$")
                 local i, a = 1
-                songtitle = "\\mdseries{" .. rotate(unicode.utf8.gsub(unicode.utf8.gsub(songtitle, "([^%s\\])%s+$", "%1"), "^(%*?)%s+", "%1")) .. "}"
+                songtitle = rotate(unicode.utf8.gsub(unicode.utf8.gsub(songtitle, "([^%s\\])%s+$", "%1"), "^(%*?)%s+", "%1"))
+                songtitle = "\\mdseries{" .. songtitle .. "}"
                 while true do
                     a, i = grabauthor(author, i)
                     if not a then
@@ -496,6 +497,7 @@ function genindex(fs, outname, authorindex)
                 end
             else
                 buf = rotate(unicode.utf8.gsub(unicode.utf8.gsub(buf, "([^%s\\])%s+$", "%1"), "^(%*?)%s+", "%1"))
+                buf = "\\mdseries{" .. buf .. "}"
                 table.insert(songs, {
                     title = buf,
                     num = snum,
