@@ -1177,12 +1177,12 @@ function genindex_by_author(songs, outname)
             return errorout(f)
         end
 
-        if not f:write("\\par\\vspace{0.7em}\\noindent\\makebox[0pt][l]{\\textbf{", author, "}}\\par\n") then
+        if not f:write("\\par\\vspace{0.7em}\\noindent\\makebox[0pt][l]{\\textbf{", author, "}}\\par\\penalty10000\n") then
             return errorout(f)
         end
 
         for _, song in ipairs(authors_map[author]) do
-            if not f:write("\\idxentry{", song.title, "}{\\songlink{", song.linkname, "}{", song.num, "}}\n") then
+            if not f:write("\\nobreak\n\\idxentry{", song.title, "}{\\songlink{", song.linkname, "}{", song.num, "}}\n") then
                 return errorout(f)
             end
         end
