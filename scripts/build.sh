@@ -27,7 +27,11 @@ echo "Installing necessary packages..."
 "$SCRIPT_DIR/install.sh"
 
 echo "First iteration of lualatex..."
-lualatex "$1" > /dev/null 2>&1
+if [ "$verbose" -eq 1 ]; then
+    lualatex "$1"
+else
+    lualatex "$1" > /dev/null 2>&1
+fi
 
 if [ -z "$indexFiles" ]; then
     echo "No index files specified, skipping index building."
@@ -42,11 +46,7 @@ else
     done
 
     echo "Second iteration of lualatex..."
-    if [ "$verbose" -eq 1 ]; then
-        lualatex "$1"
-    else
-        lualatex "$1" > /dev/null 2>&1
-    fi
+    lualatex "$1" > /dev/null 2>&1
 fi
 
 if [ "$cleanup" -eq 1 ]; then

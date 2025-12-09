@@ -71,7 +71,7 @@
 		{\fontsize{62}{65}\bfseries\setmainfont{SKAUT Bold} \@title\par}
 		\vfill
 		\begin{center}
-		  \makebox[\textwidth]{\includegraphics[width=\paperwidth]{../img/titleImage2}}
+		  \makebox[\textwidth]{\includegraphics[width=\paperwidth]{../img/titleImage5}}
 		\end{center}
 		\vfill
 		{\Large\setmainfont{TheMix C5 Bold} \@author\par}

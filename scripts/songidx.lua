@@ -1179,7 +1179,7 @@ function genindex_by_author(songs, outname)
             return errorout(f)
         end
 
-        if not f:write("\\par\\vspace{0.7em}\\noindent\\makebox[0pt][l]{\\textbf{", author, "}}\\par\\penalty10000\n") then
+        if not f:write("\\par\\vspace{0.7em}\\noindent\\makebox[0pt][l]{\\textbf{", author, "}}\\par\\penalty200\n") then
             return errorout(f)
         end
 
