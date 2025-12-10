@@ -167,6 +167,13 @@
 	\iflargepaper\else\smaller[#1]\fi
 }
 
+\newcommand{\narrowtextnote}[1]{%
+  \par\noindent
+  \begin{minipage}{0.8\linewidth}% adjust 0.8 to your desired width fraction
+	\textnote{#1}
+  \end{minipage}%
+}
+
 % ==========================
 % Chord diagram patches
 % ==========================
