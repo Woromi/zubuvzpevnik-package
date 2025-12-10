@@ -74,8 +74,8 @@
 		  \makebox[\textwidth]{\includegraphics[width=\paperwidth]{../img/titleImage5}}
 		\end{center}
 		\vfill
-		{\Large\setmainfont{Roboto} \@author\par}
-		{\Large\setmainfont{Roboto} \today\par}
+		{\Large\setmainfont{Roboto Bold} \@author\par}
+		{\Large\setmainfont{Roboto Bold} \today\par}
 		\vfill
 	\end{titlepage}
 
