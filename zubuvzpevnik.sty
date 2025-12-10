@@ -79,17 +79,17 @@
 
 % Definice notových systémů
 \newcommand{\englishchords}{%
-  % Anglický systém: C D E F G A B
-  \notenames{A}{B}{C}{D}{E}{F}{G}%
-  % Křížky a béčka standardně
+	% Anglický systém: C D E F G A B
+	\notenames{A}{B}{C}{D}{E}{F}{G}%
+	% Křížky a béčka standardně
 }
 
 \newcommand{\czechchords}{%
-  % Český systém: C D E F G A H (B = H, Bb = B)
-  % Input: Co píšeme v .tex souboru
-  \notenamesin{A}{H}{C}{D}{E}{F}{G}%
-  % Output: Jak to má být zobrazeno
-  \notenamesout{A}{H}{C}{D}{E}{F}{G}%
+	% Český systém: C D E F G A H (B = H, Bb = B)
+	% Input: Co píšeme v .tex souboru
+	\notenamesin{A}{H}{C}{D}{E}{F}{G}%
+	% Output: Jak to má být zobrazeno
+	\notenamesout{A}{H}{C}{D}{E}{F}{G}%
 }
 
 % ==========================
@@ -108,9 +108,7 @@
 \newsongkey{ori}{\def\original{}}{\def\original{\small \bfseries{Original}: \mdseries#1\par}}
 
 \newcommand{\usedchords}{}
-\newsongkey{chr}{\def\usedchords{}}{\def\usedchords{%
-		\raisebox{-0.6\height}[0pt][0pt]{#1}
-	}}
+\newsongkey{chr}{\def\usedchords{}}{\def\usedchords{#1}}
 
 \renewcommand{\extendprelude}{{%
 			\showrefs
@@ -122,10 +120,20 @@
 
 \renewcommand\makeprelude{%
 	\resettitles
-	\Large\bfseries\songtitle\space\mdseries\smalleronsmallpage[1](\songauthors)
+	{\Large\bfseries\songtitle\space\mdseries\smalleronsmallpage[1](\songauthors)}%
 	\iflargepaper
-		\hfill \usedchords \hspace{1cm} \raggedleft \extendprelude
-	\else
+		\hfill
+		\raisebox{0pt}[0pt][0pt]{%
+			\makebox[0pt][r]{% Box nulové šířky zarovnaný doprava
+				\parbox[t]{7cm}{% Box s textem
+					\raggedleft % Zarovnání textu uvnitř boxu doprava
+					\usedchords % Akordy
+					\par        % Odřádkování (teď už bezpečné)
+					\vspace{2pt}% Mezera mezi akordy a metadaty
+					\extendprelude % Metadata
+				}%
+			}%
+		}%
 	\fi
 }
 
