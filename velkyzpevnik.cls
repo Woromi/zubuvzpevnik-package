@@ -68,14 +68,14 @@
 	\begin{titlepage}
 		\centering
 		\null\vfill
-		{\fontsize{62}{65}\bfseries\setmainfont{SKAUT Bold} \@title\par}
+		{\fontsize{62}{65}\bfseries\setmainfont{Roboto Bold} \@title\par}
 		\vfill
 		\begin{center}
 		  \makebox[\textwidth]{\includegraphics[width=\paperwidth]{../img/titleImage5}}
 		\end{center}
 		\vfill
-		{\Large\setmainfont{TheMix C5 Bold} \@author\par}
-		{\Large\setmainfont{TheMix C5 Bold} \today\par}
+		{\Large\setmainfont{Roboto} \@author\par}
+		{\Large\setmainfont{Roboto} \today\par}
 		\vfill
 	\end{titlepage}
 
