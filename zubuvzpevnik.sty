@@ -140,6 +140,8 @@
 % ==========================
 % Environments
 % ==========================
+
+
 \newlength{\secondvoicewrapper}
 \setlength{\secondvoicewrapper}{\widthof{\itshape(}}
 \newcommand{\secondvoice}[1]{%
@@ -154,24 +156,15 @@
 	\vadjust{\vskip1em}%
 }
 
-\newcommand{\voice}[1]{
-	\leavevmode
-	\rlap{
-		\hspace{\linewidth - \leftskip + 2em}
-		\llap{\small\textsc{#1}
-			\hspace{1em}}
-	}%
-}
-
 \newcommand{\smalleronsmallpage}[1][0.5]{%
 	\iflargepaper\else\smaller[#1]\fi
 }
 
 \newcommand{\narrowtextnote}[1]{%
-  \par\noindent
-  \begin{minipage}{0.8\linewidth}% adjust 0.8 to your desired width fraction
-	\textnote{#1}
-  \end{minipage}%
+	\par\noindent
+	\begin{minipage}{0.8\linewidth}% adjust 0.8 to your desired width fraction
+		\textnote{#1}
+	\end{minipage}%
 }
 
 % ==========================
@@ -203,5 +196,7 @@
 \import{songpart/}{instrumental.cfg}
 % Indexing song titles with authors
 \import{songpart/}{index.cfg}
+
+\import{songpart/}{voices.cfg}
 
 \endinput
