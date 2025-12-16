@@ -141,21 +141,6 @@
 % Environments
 % ==========================
 
-
-\newlength{\secondvoicewrapper}
-\setlength{\secondvoicewrapper}{\widthof{\itshape(}}
-\newcommand{\secondvoice}[1]{%
-	\leavevmode
-	\smash{%
-		\raisebox{-1em}[0pt][0pt]{%
-			\hspace*{-\secondvoicewrapper}%
-			\makebox[0pt][l]{\itshape (#1)}%
-			\hspace*{\secondvoicewrapper}%
-		}%
-	}%
-	\vadjust{\vskip1em}%
-}
-
 \newcommand{\smalleronsmallpage}[1][0.5]{%
 	\iflargepaper\else\smaller[#1]\fi
 }
@@ -197,6 +182,7 @@
 % Indexing song titles with authors
 \import{songpart/}{index.cfg}
 
+% Multi-voice support
 \import{songpart/}{voices.cfg}
 
 \endinput
