@@ -24,6 +24,7 @@
 \RequirePackage{relsize}
 \RequirePackage[linktoc=all]{hyperref}
 \RequirePackage{calc}
+\RequirePackage{lyluatex}
 
 % ==========================
 % Internal defaults (overridable by class)
@@ -164,11 +165,6 @@
 {\relax}
 {{\vrule\@width\z@\@height4.3333\p@\@depth.8333\p@}}{}{}
 
-% ==========================
-% Song includes
-% ==========================
-\providecommand{\rootpath}{/} % default, can override in project
-\newcommand{\includesong}[1]{\input{\rootpath songs/#1}}
 
 % ==========================
 % Song parts

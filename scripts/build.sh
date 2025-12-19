@@ -26,11 +26,12 @@ done
 echo "Installing necessary packages..."
 "$SCRIPT_DIR/install.sh"
 
+# -shell-escape is needed for lyluatex to call external programs
 echo "First iteration of lualatex..."
 if [ "$verbose" -eq 1 ]; then
-    lualatex "$1"
+    lualatex -shell-escape "$1"
 else
-    lualatex "$1" > /dev/null 2>&1
+    lualatex -shell-escape "$1" > /dev/null 2>&1
 fi
 
 if [ -z "$indexFiles" ]; then
@@ -46,7 +47,7 @@ else
     done
 
     echo "Second iteration of lualatex..."
-    lualatex "$1" > /dev/null 2>&1
+    lualatex -shell-escape "$1" > /dev/null 2>&1
 fi
 
 if [ "$cleanup" -eq 1 ]; then
