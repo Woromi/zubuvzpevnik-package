@@ -14,23 +14,34 @@
 % ==========================
 \RequirePackage{songs}
 \RequirePackage{import}
-\RequirePackage[czech]{babel}
+\RequirePackage[czech,english]{babel}
+\RequirePackage[autostyle=true]{csquotes}
 \RequirePackage{etoolbox}
 \RequirePackage{xpatch}
 \RequirePackage{ifthen}
 \RequirePackage{fontspec}
-\RequirePackage[default]{opensans}
-\RequirePackage{roboto-mono}
 \RequirePackage{relsize}
 \RequirePackage[linktoc=all]{hyperref}
 \RequirePackage{calc}
 \RequirePackage[pass-fonts,language=Czech]{lyluatex}
 
 % ==========================
+% Quotes fix
+% ==========================
+\DeclareQuoteAlias{czech}{quotes}
+\renewcommand{\uv}[1]{\enquote{#1}}
+
+% ==========================
+% Fonts
+% ==========================
+\setmainfont{Open Sans}
+\setmonofont{Roboto Mono}
+
+% ==========================
 % Internal defaults (overridable by class)
 % ==========================
-\newcommand{\zub@lyricfont}{}
-\newcommand{\zub@printchord}{}
+\newcommand{\zub@lyricfont}{\ttfamily}
+\newcommand{\zub@printchord}{\ttfamily}
 \newcommand{\zub@stitlefont}{}
 \newif\iflargepaper
 \largepaperfalse % default (A5 or smaller)
@@ -110,6 +121,15 @@
 
 \newcommand{\usedchords}{}
 \newsongkey{chr}{\def\usedchords{}}{\def\usedchords{#1\par}}
+
+\newsongkey{lang}{\selectlanguage{english}}{
+	\selectlanguage{#1}
+	\ifthenelse{\equal{#1}{czech}}{
+		\czechchords
+	}{
+		\englishchords
+	}
+}
 
 \renewcommand{\extendprelude}{{%
 			\usedchords
