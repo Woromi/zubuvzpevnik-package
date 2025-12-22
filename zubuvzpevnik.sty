@@ -109,9 +109,10 @@
 \newsongkey{ori}{\def\original{}}{\def\original{\small \bfseries{Original}: \mdseries#1\par}}
 
 \newcommand{\usedchords}{}
-\newsongkey{chr}{\def\usedchords{}}{\def\usedchords{#1}}
+\newsongkey{chr}{\def\usedchords{}}{\def\usedchords{#1\par}}
 
 \renewcommand{\extendprelude}{{%
+			\usedchords
 			\showrefs
 			\original
 			\tempo
@@ -128,9 +129,6 @@
 			\makebox[0pt][r]{% Box nulové šířky zarovnaný doprava
 				\parbox[t]{7cm}{% Box s textem
 					\raggedleft % Zarovnání textu uvnitř boxu doprava
-					\usedchords % Akordy
-					\par        % Odřádkování
-					\vspace{2pt}% Mezera mezi akordy a metadaty
 					\extendprelude % Metadata
 				}%
 			}%
