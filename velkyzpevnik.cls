@@ -63,7 +63,7 @@
 % Front cover
 % ==========================
 \newcommand{\makefrontcover}{%
-	\clearpage
+	\pagenumbering{Alph}
 	\pagestyle{empty}
 	\begin{titlepage}
 		\centering
@@ -71,7 +71,7 @@
 		{\fontsize{62}{65}\bfseries\setmainfont{Roboto Bold} \@title\par}
 		\vfill
 		\begin{center}
-		  \makebox[\textwidth]{\includegraphics[width=\paperwidth]{titleImage}}
+			\makebox[\textwidth]{\includegraphics[width=\paperwidth]{titleImage}}
 		\end{center}
 		\vfill
 		{\Large\setmainfont{Roboto Bold} \@author\par}
@@ -82,14 +82,15 @@
 	% Inside front cover = TOC
 	\clearpage
 	\pagestyle{empty}
+	\pagenumbering{roman}
 	{\large \showindex[1]{Obsah}{obsah}}
 	{\large \showindex[2]{Obsah podle interpreta}{obsahAutor}}
 	% TODO: Obsah interpretu prohazuje slova v nazvu kapel (razeni podle prijmeni)
 
 	% Start page numbering from the following page
 	\clearpage
+	\pagenumbering{arabic}
 	\pagestyle{fancy}
-	\setcounter{page}{1}
 }
 
 \endinput
