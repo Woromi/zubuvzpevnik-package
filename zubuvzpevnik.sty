@@ -14,12 +14,11 @@
 % ==========================
 \RequirePackage{songs}
 \RequirePackage{import}
-\RequirePackage[czech,english,hebrew,provide=*]{babel}
+\RequirePackage[english,czech]{babel}
 \RequirePackage[autostyle=true]{csquotes}
 \RequirePackage{etoolbox}
 \RequirePackage{xpatch}
 \RequirePackage{ifthen}
-\RequirePackage{fontspec}
 \RequirePackage{relsize}
 \RequirePackage[linktoc=all]{hyperref}
 \RequirePackage{bookmark}
@@ -27,22 +26,18 @@
 \RequirePackage[fragment=false,pass-fonts,language=Czech]{lyluatex}
 
 % ==========================
+% Fonts
+% ==========================
+\babelfont{rm}{Open Sans}
+\babelfont{sf}{Open Sans}
+\babelfont{tt}{Roboto Mono}
+\babelfont[hebrew]{rm}{FreeSans}
+
+% ==========================
 % Quotes fix
 % ==========================
 \DeclareQuoteAlias{czech}{quotes}
 \renewcommand{\uv}[1]{\enquote{#1}}
-
-% ==========================
-% Fonts
-% ==========================
-\setmainfont{Open Sans}
-\setmonofont{Roboto Mono}
-
-% ==========================
-% Hebrew font
-% ==========================
-\babelfont[hebrew]{rm}{FreeSans} % Or "David CLM", "Arial", "Times New Roman"
-\newcommand{\textheb}[1]{\foreignlanguage{hebrew}{#1}}
 
 % ==========================
 % Internal defaults (overridable by class)
