@@ -30,11 +30,6 @@
 ]{geometry}
 
 % ==========================
-% Language
-% ==========================
-\RequirePackage[czech]{babel}
-
-% ==========================
 % Song styling overrides
 % ==========================
 \renewcommand{\zub@lyricfont}{\ttfamily}

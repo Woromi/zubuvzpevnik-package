@@ -14,7 +14,7 @@
 % ==========================
 \RequirePackage{songs}
 \RequirePackage{import}
-\RequirePackage[czech,english]{babel}
+\RequirePackage[czech,english,hebrew,provide=*]{babel}
 \RequirePackage[autostyle=true]{csquotes}
 \RequirePackage{etoolbox}
 \RequirePackage{xpatch}
@@ -39,11 +39,18 @@
 \setmonofont{Roboto Mono}
 
 % ==========================
+% Hebrew font
+% ==========================
+\babelfont[hebrew]{rm}{FreeSans} % Or "David CLM", "Arial", "Times New Roman"
+\newcommand{\textheb}[1]{\foreignlanguage{hebrew}{#1}}
+
+% ==========================
 % Internal defaults (overridable by class)
 % ==========================
 \newcommand{\zub@lyricfont}{\ttfamily}
 \newcommand{\zub@printchord}{\ttfamily}
 \newcommand{\zub@stitlefont}{}
+\newcommand{\zub@meterfont}{\ttfamily}
 \newif\iflargepaper
 \largepaperfalse % default (A5 or smaller)
 
@@ -51,6 +58,7 @@
 \renewcommand{\lyricfont}{\zub@lyricfont}
 \renewcommand{\printchord}{\zub@printchord}
 \renewcommand{\stitlefont}{\zub@stitlefont}
+\renewcommand{\stitlefont}{\zub@meterfont}
 \renewcommand{\notefont}{\it}
 
 % ==========================
