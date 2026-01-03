@@ -66,7 +66,7 @@
 		{\fontsize{62}{65}\bfseries\setmainfont{Roboto Bold} \@title\par}
 		\vfill
 		\begin{center}
-			\makebox[\textwidth]{\includegraphics[width=\paperwidth]{titleImage}}
+			\makebox[\textwidth]{\includegraphics[width=\paperwidth]{zubuvzpevnik}}
 		\end{center}
 		\vfill
 		{\Large\setmainfont{Roboto Bold} \@author\par}
