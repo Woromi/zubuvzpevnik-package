@@ -1,4 +1,6 @@
-#!/bin/sh
+#!/bin/bash
+set -euo pipefail
+trap 'echo "ERROR: install.sh failed at line $LINENO"; exit 1' ERR
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 

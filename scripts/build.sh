@@ -1,4 +1,6 @@
-#!/bin/sh
+#!/bin/bash
+set -euo pipefail
+trap 'echo "ERROR: build.sh failed at line $LINENO"; exit 1' ERR
 
 if [ $# -lt 1 ]; then
     echo "Usage: $0 [options] <texfile>"
