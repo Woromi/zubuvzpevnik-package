@@ -78,7 +78,7 @@
 	\clearpage
 	\pagestyle{empty}
 	\pagenumbering{roman}
-	{\large \showindex[1]{Obsah}{obsah}}
+	{\large \showindex[2]{Obsah}{obsah}}
 	{\large \showindex[2]{Obsah podle interpreta}{obsahAutor}}
 	% TODO: Obsah interpretu prohazuje slova v nazvu kapel (razeni podle prijmeni)
 
