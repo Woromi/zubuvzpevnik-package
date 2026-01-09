@@ -13,4 +13,3 @@ if [ -d "$PACKAGE_PATH" ]; then
     rm -r "$PACKAGE_PATH" || { echo "ERROR: Failed to remove package"; exit 1; }
     echo "Package removed: $PACKAGE_PATH"
 fi
-|/tmp-ly$
