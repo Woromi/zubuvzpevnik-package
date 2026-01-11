@@ -12,12 +12,16 @@ strokeDown = \markup {
 }
 
 \layout {
+  ragged-right = ##f % Even short tabs would be spread across the whole page
+
   \context {
     \ChordNames {
       \set chordChanges = ##t
       \override ChordName.font-series = #'bold
+      \override ChordName.font-size = #0
     }
   }
+  
   \context {
     \TabStaff {
       % Ultimate guitar style
