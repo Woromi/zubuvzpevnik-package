@@ -33,7 +33,7 @@
 % Song styling overrides
 % ==========================
 \renewcommand{\zub@lyricfont}{\ttfamily}
-\renewcommand{\zub@printchord}{\ttfamily\bfseries}
+\renewcommand{\zub@printchord}{\ttfamily\bfseries \color{violet}}
 \renewcommand{\zub@stitlefont}{\Huge}
 \largepapertrue
 

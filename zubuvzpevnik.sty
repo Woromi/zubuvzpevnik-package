@@ -52,7 +52,7 @@
 \renewcommand{\lyricfont}{\zub@lyricfont}
 \renewcommand{\printchord}{\zub@printchord}
 \renewcommand{\stitlefont}{\zub@stitlefont}
-\renewcommand{\stitlefont}{\zub@meterfont}
+\renewcommand{\meterfont}{\zub@meterfont}
 \renewcommand{\notefont}{\it}
 
 % ==========================
@@ -99,28 +99,24 @@
 	% Křížky a béčka standardně
 }
 
-\newcommand{\czechchords}{%
-	% Český systém: C D E F G A H (B = H, Bb = B)
-	% Input: Co píšeme v .tex souboru
-	\notenamesin{A}{H}{C}{D}{E}{F}{G}%
-	% Output: Jak to má být zobrazeno
-	\notenamesout{A}{H}{C}{D}{E}{F}{G}%
+\newcommand\czechchords{%
+  \notenames{A}{H}{C}{D}{E}{F}{G}%
 }
 
 % ==========================
 % Song metadata (key, tuning)
 % ==========================
 \newcommand{\key}{}
-\newsongkey{key}{\def\key{}}{\def\key{\small \bfseries{Key}: \mdseries#1\par}}
+\newsongkey{key}{\def\key{}}{\def\key{\small \bfseries{Key}: {\mdseries#1}\par}}
 
 \newcommand{\tuning}{}
-\newsongkey{tun}{\def\tuning{}}{\def\tuning{\small \bfseries{Tuning}: \mdseries#1\par}}
+\newsongkey{tun}{\def\tuning{}}{\def\tuning{\small \bfseries{Tuning}: {\mdseries#1}\par}}
 
 \newcommand{\tempo}{}
-\newsongkey{tem}{\def\tempo{}}{\def\tempo{\small \bfseries{Tempo}: \mdseries#1\par}}
+\newsongkey{tem}{\def\tempo{}}{\def\tempo{\small \bfseries{Tempo}: {\mdseries#1}\par}}
 
 \newcommand{\original}{}
-\newsongkey{ori}{\def\original{}}{\def\original{\small \bfseries{Original}: \mdseries#1\par}}
+\newsongkey{ori}{\def\original{}}{\def\original{\small \bfseries{Original}: {\mdseries#1}\par}}
 
 \newcommand{\usedchords}{}
 \newsongkey{chr}{\def\usedchords{}}{\def\usedchords{#1\par}}
