@@ -28,6 +28,8 @@ strokeDown = \markup {
       \stemDown
       \override Beam.concaveness = #10000 % Horizontal beams
       \override Beam.positions = #'(-5 . -5) % All at the same position
+      
+      \set TabStaff.stringTunings = #guitar-tuning
     }
   }
 }
