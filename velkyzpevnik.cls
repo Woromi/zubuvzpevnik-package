@@ -63,14 +63,14 @@
 	\begin{titlepage}
 		\centering
 		\null\vfill
-		{\fontsize{62}{65}\bfseries\setmainfont{Roboto Bold} \@title\par}
+		{\fontsize{62}{65}\bfseries \@title\par}
 		\vfill
 		\begin{center}
 			\makebox[\textwidth]{\includegraphics[width=\paperwidth]{zubuvzpevnik}}
 		\end{center}
 		\vfill
-		{\Large\setmainfont{Roboto Bold} \@author\par}
-		{\Large\setmainfont{Roboto Bold} \today\par}
+		{\Large \@author\par}
+		{\Large \today\par}
 		\vfill
 	\end{titlepage}
 
