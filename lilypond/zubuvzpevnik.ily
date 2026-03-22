@@ -1,3 +1,5 @@
+\version "2.24.1"
+
 strokeUp = \markup { 
   \combine
   \override #'(thickness . 1.3) 
