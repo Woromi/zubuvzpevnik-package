@@ -57,7 +57,7 @@
 % ==========================
 % Front cover
 % ==========================
-\newcommand{\makefrontcover}{%
+\newcommand{\makefrontcover}[1]{%
 	\pagenumbering{Alph}
 	\pagestyle{empty}
 	\begin{titlepage}
@@ -66,21 +66,22 @@
 		{\fontsize{62}{65}\bfseries \@title\par}
 		\vfill
 		\begin{center}
-			\makebox[\textwidth]{\includegraphics[width=\paperwidth]{zubuvzpevnik}}
+			\makebox[\textwidth]{\includegraphics[width=\paperwidth]{#1}}
 		\end{center}
 		\vfill
 		{\Large \@author\par}
 		{\Large \today\par}
 		\vfill
 	\end{titlepage}
+}
 
+\newcommand{\insertindex}{%
 	% Inside front cover = TOC
 	\clearpage
 	\pagestyle{empty}
 	\pagenumbering{roman}
 	{\large \showindex[2]{Obsah}{obsah}}
 	{\large \showindex[2]{Obsah podle interpreta}{obsahAutor}}
-	% TODO: Obsah interpretu prohazuje slova v nazvu kapel (razeni podle prijmeni)
 
 	% Start page numbering from the following page
 	\clearpage
