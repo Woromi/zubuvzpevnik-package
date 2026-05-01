@@ -167,11 +167,27 @@
 	\iflargepaper\else\smaller[#1]\fi
 }
 
+\newenvironment{narrowonlargepaper}{%
+	\iflargepaper
+		\par\noindent
+		\begin{minipage}{0.8\linewidth}% adjust 0.8 to your desired width fraction
+	\fi
+}{%
+	\iflargepaper
+		\end{minipage}%
+	\fi
+}
+
 \newcommand{\narrowtextnote}[1]{%
-	\par\noindent
-	\begin{minipage}{0.8\linewidth}% adjust 0.8 to your desired width fraction
+	\begin{narrowonlargepaper}
 		\textnote{#1}
-	\end{minipage}%
+	\end{narrowonlargepaper}
+}
+
+\newcommand{\narrowlilypondfile}[1]{%
+	\begin{narrowonlargepaper}
+		\lilypondfile{#1}
+	\end{narrowonlargepaper}
 }
 
 % ==========================
