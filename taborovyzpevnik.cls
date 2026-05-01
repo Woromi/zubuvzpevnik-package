@@ -41,7 +41,7 @@
 % ==========================
 \RequirePackage{pdfpages}
 \RequirePackage{graphicx}
-\graphicspath{{\rootpath img/}} % Obrazky spolecne pro vsechny tabory
+\graphicspath{{img/}}
 
 % ==========================
 % Header/Footer
@@ -61,6 +61,8 @@
 \RequirePackage{setspace}
 \onehalfspacing % Slightly spaced lines for readability
 
+\multivoiceoff
+
 % ==========================
 % Prevent page breaks inside songs
 % ==========================
@@ -78,7 +80,7 @@
 		\null\vfill
 		{\fontsize{72}{75}\bfseries\setmainfont{SKAUT Bold} Zpěvník\par}
 		\vfill
-		\includegraphics{../img/kane}
+		\includegraphics{img/kane}
 		\vfill
 		{\Large\setmainfont{TheMix C5 Bold} \@title~\the\year\par}
 		\vfill
@@ -102,7 +104,7 @@
 	% --- Inside Back Cover ---
 	\clearpage
 	\pagestyle{empty}
-	\input{../akordy}
+	\include{projects/tabory/akordy}
 	\null\vfill
 	\begin{center}
 		{\small \ifx\relax#1\else #1 \\ \fi Sestavil: \@author~\the\year{}}
