@@ -1,20 +1,16 @@
 \version "2.24.1"
 
-strokeUp = \markup { 
-  \combine
-  \override #'(thickness . 1.3) 
-  \draw-line #'(0 . 2)\raise #2 
-  \arrow-head #Y #UP ##f
-}
-strokeDown = \markup { 
-  \combine
-  \arrow-head #Y #DOWN ##f 
-  \override #'(thickness . 1.3) 
-  \draw-line #'(0 . 2)
-}
+strokeUp = \markup\combine\override #'(thickness . 1.3) \draw-line #'(0 . 2)\raise #2 \arrow-head #Y #UP ##f
+strokeDown = \markup\combine\arrow-head #Y #DOWN ##f \override #'(thickness . 1.3) \draw-line #'(0 . 2)
 
 \layout {
   ragged-right = ##f % Even short tabs would be spread across the whole page
+
+  \context {
+    \Staff {
+      \set Score.proportionalNotationDuration = #(ly:make-moment 1/8)
+    }
+  }
 
   \context {
     \ChordNames {
