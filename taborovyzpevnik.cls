@@ -104,7 +104,7 @@
 	% --- Inside Back Cover ---
 	\clearpage
 	\pagestyle{empty}
-	\include{projects/tabory/akordy}
+	\input{akordy}
 	\null\vfill
 	\begin{center}
 		{\small \ifx\relax#1\else #1 \\ \fi Sestavil: \@author~\the\year{}}
