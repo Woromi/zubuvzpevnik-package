@@ -4,6 +4,10 @@
 % ==========================
 % Options
 % ==========================
+\newcommand\ZUB@targetlang{}  % empty = show all
+
+\DeclareOption{czech}{\renewcommand\ZUB@targetlang{czech}}
+\DeclareOption{english}{\renewcommand\ZUB@targetlang{english}}
 \DeclareOption*{%
 	\PassOptionsToPackage{\CurrentOption}{songs}%
 }
@@ -36,6 +40,7 @@
 
 % ==========================
 % Quotes fix
+% ==========================
 \DeclareQuoteAlias{czech}{quotes}
 \renewcommand{\uv}[1]{\enquote{#1}}
 
@@ -122,13 +127,11 @@
 \newcommand{\usedchords}{}
 \newsongkey{chr}{\def\usedchords{}}{\def\usedchords{#1\par}}
 
-\newsongkey{lang}{\selectlanguage{english}}{
-	\selectlanguage{#1}
-	\ifthenelse{\equal{#1}{czech}}{
-		\czechchords
-	}{
-		\englishchords
-	}
+\newcommand{\SB@songlang}{}
+\newsongkey{lang}
+{\gdef\SB@songlang{}\selectlanguage{english}}%
+{\gdef\SB@songlang{#1}\selectlanguage{#1}%
+	\ifthenelse{\equal{#1}{czech}}{\czechchords}{\englishchords}
 }
 
 \newcommand{\sourcelink}{}
@@ -157,6 +160,23 @@
 			}%
 		}%
 	\fi
+}
+
+% ==========================
+% Filter songs by language
+% ==========================
+\let\SB@origsubmitsong\SB@submitsong
+\renewcommand\SB@submitsong{%
+  \ifthenelse{\equal{\ZUB@targetlang}{}}{%
+    \SB@origsubmitsong
+  }{%
+    \ifthenelse{\equal{\SB@songlang}{\ZUB@targetlang}}{%
+      \SB@origsubmitsong
+    }{%
+      \setbox\SB@songbox\box\voidb@x
+      \stepcounter{songnum}%
+    }%
+  }%
 }
 
 % ==========================
