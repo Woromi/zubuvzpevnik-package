@@ -4,10 +4,6 @@
 % ==========================
 % Options
 % ==========================
-\newcommand\ZUB@targetlang{}  % empty = show all
-
-\DeclareOption{czech}{\renewcommand\ZUB@targetlang{czech}}
-\DeclareOption{english}{\renewcommand\ZUB@targetlang{english}}
 \DeclareOption*{%
 	\PassOptionsToPackage{\CurrentOption}{songs}%
 }
@@ -29,6 +25,7 @@
 \RequirePackage{calc}
 \RequirePackage[fragment=false,pass-fonts,language=Czech]{lyluatex}
 \RequirePackage[htt]{hyphenat}
+\RequirePackage{xstring}
 
 % ==========================
 % Fonts
@@ -107,6 +104,7 @@
 
 \newcommand\czechchords{%
 	\notenames{A}{H}{C}{D}{E}{F}{G}%
+	% TODO: Tohle nefunguje, při transpozici to pořád neumí H (Hb)
 }
 
 % ==========================
@@ -148,7 +146,7 @@
 
 \renewcommand\makeprelude{%
 	\resettitles
-	{\Large\bfseries\songtitle\space\mdseries\smalleronsmallpage[1](\songauthors)}%
+	{\Large\bfseries\thesongnum~\songtitle\space\mdseries\smalleronsmallpage[1](\songauthors)}%
 	\iflargepaper
 		\hfill
 		\raisebox{0pt}[0pt][0pt]{%
@@ -165,16 +163,29 @@
 % ==========================
 % Filter songs by language
 % ==========================
+\newcommand\ZUB@includelangs{}
+\newcommand\ZUB@excludelangs{}
+
+\newcommand\includelangs[1]{\renewcommand\ZUB@includelangs{#1}}
+\newcommand\excludelangs[1]{\renewcommand\ZUB@excludelangs{#1}}
+
 \let\SB@origsubmitsong\SB@submitsong
 \renewcommand\SB@submitsong{%
-  \ifthenelse{\equal{\ZUB@targetlang}{}}{%
-    \SB@origsubmitsong
-  }{%
-    \ifthenelse{\equal{\SB@songlang}{\ZUB@targetlang}}{%
+  \ifthenelse{\equal{\ZUB@includelangs}{}}{%
+    \ifthenelse{\equal{\ZUB@excludelangs}{}}{%
       \SB@origsubmitsong
     }{%
-      \setbox\SB@songbox\box\voidb@x
-      \stepcounter{songnum}%
+      \IfSubStr{\ZUB@excludelangs}{\SB@songlang}{%
+        \setbox\SB@songbox\box\voidb@x\addtocounter{songnum}{-1}%
+      }{%
+        \SB@origsubmitsong
+      }%
+    }%
+  }{%
+    \IfSubStr{\ZUB@includelangs}{\SB@songlang}{%
+      \SB@origsubmitsong
+    }{%
+      \setbox\SB@songbox\box\voidb@x\addtocounter{songnum}{-1}%
     }%
   }%
 }
