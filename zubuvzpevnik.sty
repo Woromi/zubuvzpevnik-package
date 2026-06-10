@@ -92,19 +92,36 @@
 }
 
 % ==========================
-% TODO: Czech chords
+% Czech chords (H = English B, B = English B-flat)
 % ==========================
+% The songs package only supports 7 note names, but the Czech system has an
+% eighth one: B means English B-flat. Patch the transposition scanner so that
+%  - input: a note name matching none of the seven \notenames is compared
+%    against \ZUB@noteBb and read as B-flat (semitone 1),
+%  - output: semitone 1 prints \ZUB@printBb instead of \printnoteB\flt,
+%    so with Czech names it prints "B" rather than the nonsense "Hb".
+\newcommand\ZUB@noteBb{\relax}% never matches a note name => disabled
+\newcommand\ZUB@printBb{\printnoteB\noexpand\flt}
 
-% Definice notových systémů
+\patchcmd\SB@trtrans
+	{\else-99 \fi}
+	{\else\ifx\SB@temp\ZUB@noteBb\@ne\else-99 \fi\fi}
+	{}{\PackageError{zubuvzpevnik}{Patching \string\SB@trtrans\space (note input) failed}{}}
+\patchcmd\SB@trtrans
+	{\printnoteB\noexpand\flt\or\printnoteB\or}
+	{\ZUB@printBb\or\printnoteB\or}
+	{}{\PackageError{zubuvzpevnik}{Patching \string\SB@trtrans\space (note output) failed}{}}
+
 \newcommand{\englishchords}{%
-	% Anglický systém: C D E F G A B
 	\notenames{A}{B}{C}{D}{E}{F}{G}%
-	% Křížky a béčka standardně
+	\def\ZUB@noteBb{\relax}%
+	\def\ZUB@printBb{\printnoteB\noexpand\flt}%
 }
 
-\newcommand\czechchords{%
+\newcommand{\czechchords}{%
 	\notenames{A}{H}{C}{D}{E}{F}{G}%
-	% TODO: Tohle nefunguje, při transpozici to pořád neumí H (Hb)
+	\def\ZUB@noteBb{B}%
+	\def\ZUB@printBb{B}%
 }
 
 % ==========================
@@ -127,9 +144,9 @@
 
 \newcommand{\SB@songlang}{}
 \newsongkey{lang}
-{\gdef\SB@songlang{}\selectlanguage{english}}%
+{\gdef\SB@songlang{}\selectlanguage{english}\englishchords}%
 {\gdef\SB@songlang{#1}\selectlanguage{#1}%
-	\ifthenelse{\equal{#1}{czech}}{\czechchords}{\englishchords}
+	\ifthenelse{\equal{#1}{czech}\OR\equal{#1}{slovak}}{\czechchords}{\englishchords}
 }
 
 \newcommand{\sourcelink}{}
@@ -163,8 +180,9 @@
 % ==========================
 % Filter songs by language
 % ==========================
-\newcommand\ZUB@includelangs{}
-\newcommand\ZUB@excludelangs{}
+% \providecommand: build.sh may have already defined these on the command line
+\providecommand\ZUB@includelangs{}
+\providecommand\ZUB@excludelangs{}
 
 \newcommand\includelangs[1]{\renewcommand\ZUB@includelangs{#1}}
 \newcommand\excludelangs[1]{\renewcommand\ZUB@excludelangs{#1}}
