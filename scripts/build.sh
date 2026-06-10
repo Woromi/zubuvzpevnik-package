@@ -33,32 +33,45 @@ while [ $# -gt 1 ]; do
         *) echo "Unknown parameter: $1"; shift ;;
     esac
 done
+texfile="$1"
 
 if [ -n "$includelangs" ] && [ -n "$excludelangs" ]; then
     echo "ERROR: -l and -e cannot be used together"
     exit 1
 fi
 
-# Build pretex string
+# Language filters are passed as TeX code prepended to \input of the document
 pretex=""
-[ -n "$includelangs" ] && pretex="${pretex}\\def\\ZUB@includelangs{$includelangs}"
-[ -n "$excludelangs" ] && pretex="${pretex}\\def\\ZUB@excludelangs{$excludelangs}"
+[ -n "$includelangs" ] && pretex="\\makeatletter\\def\\ZUB@includelangs{$includelangs}\\makeatother"
+[ -n "$excludelangs" ] && pretex="\\makeatletter\\def\\ZUB@excludelangs{$excludelangs}\\makeatother"
 
-# Build lualatex command
-lualatex_cmd="lualatex -shell-escape"
-[ -n "$pretex" ] && lualatex_cmd="$lualatex_cmd -usepretex='$pretex'"
-[ -n "$outputfile" ] && lualatex_cmd="$lualatex_cmd -jobname='$outputfile'"
-lualatex_cmd="$lualatex_cmd '$1'"
+# -shell-escape is needed for lyluatex to call lilypond
+lualatex_cmd=(lualatex -shell-escape -interaction=nonstopmode -halt-on-error)
+[ -n "$outputfile" ] && lualatex_cmd+=("--jobname=$outputfile")
+if [ -n "$pretex" ]; then
+    lualatex_cmd+=("${pretex}\\input{$texfile}")
+else
+    lualatex_cmd+=("$texfile")
+fi
+
+jobname="${outputfile:-$(basename "$texfile" .tex)}"
+
+# $1: 1 = show lualatex output, 0 = silent (but show the log tail on failure)
+run_lualatex() {
+    if [ "$1" -eq 1 ]; then
+        "${lualatex_cmd[@]}"
+    elif ! "${lualatex_cmd[@]}" > /dev/null 2>&1; then
+        echo "lualatex failed, end of $jobname.log:"
+        tail -n 30 "$jobname.log"
+        exit 1
+    fi
+}
 
 echo "Installing necessary packages..."
 "$SCRIPT_DIR/install.sh"
 
 echo "First iteration of lualatex..."
-if [ "$verbose" -eq 1 ]; then
-    eval "$lualatex_cmd"
-else
-    eval "$lualatex_cmd" > /dev/null 2>&1
-fi
+run_lualatex "$verbose"
 
 if [ -z "$indexFiles" ]; then
     echo "No index files specified, skipping index building."
@@ -72,8 +85,9 @@ else
         fi
     done
 
+    # Intentionally quiet even with -v: its errors would just repeat the first pass
     echo "Second iteration of lualatex..."
-    eval "$lualatex_cmd" > /dev/null 2>&1
+    run_lualatex 0
 fi
 
 if [ "$cleanup" -eq 1 ]; then

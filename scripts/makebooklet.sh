@@ -3,7 +3,8 @@ set -euo pipefail
 trap 'echo "ERROR: makebooklet.sh failed at line $LINENO"; exit 1' ERR
 
 if [ $# -lt 1 ]; then
-    echo "Usage: $0 [options] <texfile>"
+    echo "Usage: $0 [options] <jobname>"
+    echo "  jobname  : base name of the PDF to reorder (jobname.pdf -> jobnameBooklet.pdf)"
     echo "  -v       : verbose output"
     echo "  -c       : cleanup build files and uninstall packages after build"
     exit 1
@@ -22,12 +23,16 @@ while [ $# -gt 1 ]; do
     esac
 done
 
-# -shell-escape is needed for lyluatex to call external programs
+booklet_cmd=(lualatex -interaction=nonstopmode -halt-on-error \
+    "--jobname=${1}Booklet" "\\def\\pdfname{$1.pdf}\\input{$SCRIPT_DIR/makebooklet.tex}")
+
 echo "Creating booklet..."
 if [ "$verbose" -eq 1 ]; then
-    lualatex -shell-escape --jobname="${1}Booklet" "\def\pdfname{$1.pdf}\input{$SCRIPT_DIR/makebooklet.tex}"
-else
-    lualatex -shell-escape --jobname="${1}Booklet" "\def\pdfname{$1.pdf}\input{$SCRIPT_DIR/makebooklet.tex}" > /dev/null 2>&1
+    "${booklet_cmd[@]}"
+elif ! "${booklet_cmd[@]}" > /dev/null 2>&1; then
+    echo "lualatex failed, end of ${1}Booklet.log:"
+    tail -n 30 "${1}Booklet.log"
+    exit 1
 fi
 
 if [ "$cleanup" -eq 1 ]; then
