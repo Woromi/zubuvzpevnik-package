@@ -166,11 +166,11 @@ function songcmp(s1, s2)
 
     -- If all corresponding words/numbers are equal, then sort alternate-form
     -- entries (e.g., lyrics) after normal entries (e.g., titles)
-    local alt1, alt2 = s1["title"]:sub(1, 1), s2["title"]:sub(1, 1)
-    if alt1 == "*" and alt2 ~= "*" then
+    local alt1, alt2 = s1["alt"], s2["alt"]
+    if alt1 and not alt2 then
         return false
     end
-    if alt1 ~= "*" and alt2 == "*" then
+    if not alt1 and alt2 then
         return true
     end
 
@@ -196,22 +196,30 @@ function setstartchars(songs)
     local best
 
     for i = 1, #songs do
-        local c = unicode.utf8.match(cleantitle(songs[i]), "%w")
+        local c, c2 = unicode.utf8.match(cleantitle(songs[i]), "(%w)(%w?)")
         if c then
             c = unicode.utf8.upper(c)
+            -- Treat the Czech digraph "Ch" as its own block character, but only
+            -- when the locale actually collates "CH" after "H" (as cs_CZ does).
+            if c == "C" and unicode.utf8.upper(c2) == "H" and "H" < "CH" then
+                c = "CH"
+            end
             if not best then
                 songs[start]["newblk"], start, best = "\\#", i, c
             elseif best < c then
                 songs[start]["newblk"], start, best = best, i, c
-            elseif #c < #best then
-                best = c
-            elseif #c == #best then
-                for j = 1, #c do
-                    if c:byte(j) < best:byte(j) then
-                        best = c;
-                        break
-                    elseif c:byte(j) > best:byte(j) then
-                        break
+            elseif not (c < best) then
+                -- c and best are collation-equal; prefer the canonical glyph.
+                if #c < #best then
+                    best = c
+                elseif #c == #best then
+                    for j = 1, #c do
+                        if c:byte(j) < best:byte(j) then
+                            best = c;
+                            break
+                        elseif c:byte(j) > best:byte(j) then
+                            break
+                        end
                     end
                 end
             end
@@ -229,9 +237,20 @@ function setstartchars(songs)
     end
 end
 
-prelist = {
-    A = true,
-    THE = true
+-- Default title prefix word list, used for entries with no (or an unknown)
+-- language.  Empty since prefix words are language-specific; %prefix
+-- directives in the data file add to it.
+prelist = {}
+-- Language-specific title prefix word lists.  A "%lang <language>" line in
+-- the data file (written by zubuvzpevnik.sty from each song's lang= key)
+-- selects the list that rotate() uses for the entries that follow it.
+-- Languages missing from this table fall back to prelist.
+prelists = {
+    english = {
+        THE = true,
+        A = true,
+        AN = true
+    }
 }
 wt_and = {
     AND = true
@@ -243,20 +262,21 @@ wt_unknown = {
     UNKNOWN = true
 }
 
--- rotate(<title>)
---   If the first word of <title> is any word in prelist, then shift that word
---   to the end of the string, preceded by a comma and a space.  So for example,
---   if prelist contains "The", then rotate("The title") returns "Title, The".
---   Words in prelist are matched case-insensitively, and the new first word
---   becomes capitalized.  If <title> begins with the marker character '*',
---   that character is ignored and left unchanged.
-function rotate(s)
+-- rotate(<title>,<words>)
+--   If the first word of <title> is any word in <words> (defaulting to
+--   prelist), then shift that word to the end of the string, preceded by a
+--   comma and a space.  So for example, if <words> contains "The", then
+--   rotate("The title") returns "Title, The".  Words are matched
+--   case-insensitively, and the new first word becomes capitalized.  If
+--   <title> begins with the marker character '*', that character is ignored
+--   and left unchanged.
+function rotate(s, words)
     local t = unicode.utf8.upper(s)
     local n = 0
     if s:sub(1, 1) == "*" then
         n = 1
     end
-    for pre in pairs(prelist) do
+    for pre in pairs(words or prelist) do
         if t:sub(1 + n, n + #pre) == pre and unicode.utf8.find(t, "^%s+%S", n + #pre + 1) then
             local len = unicode.utf8.len(pre)
             local x, y, z = unicode.utf8.match(unicode.utf8.sub(s, n + len + 1), "^%s+(%W*)(%w?)(.*)$")
@@ -444,8 +464,13 @@ end
 function genindex(fs, outname, authorindex)
     local songs = {}
     local seen = {}
-    local wt = {wt_sep, wt_after, wt_prefix, wt_ignore}
+    -- %sep adds to the "and"-words, %after to the "by"-words, %prefix to the
+    -- title prefix words, and %ignore to the "unknown"-words (in that order,
+    -- matching the position captures below).
+    local wt = {wt_and, wt_by, prelist, wt_unknown}
     local typ = authorindex and "author" or "title"
+    -- Active prefix word list, switched by %lang directives (nil = prelist).
+    local langpre = nil
 
     io.stderr:write("songidx: Parsing ", typ, " index data file ", fs["filename"], "...\n")
 
@@ -455,11 +480,19 @@ function genindex(fs, outname, authorindex)
             break
         end
         if buf:sub(1, 1) == "%" then
+            local lang = buf:match("^%%lang%s*(%S*)")
             local j = buf:match("^()%%sep ") or buf:match("^%%()after ") or buf:match("^%%p()refix ") or
                           buf:match("^%%ig()nore ")
-            if j then
+            if lang then
+                langpre = prelists[unicode.utf8.lower(lang)]
+            elseif j then
                 if not seen[j] then
-                    wt[j], seen[j] = {}, true
+                    -- Clear the default word list in place so the global alias
+                    -- (wt_and/wt_by/prelist/wt_unknown) stays linked.
+                    for k in pairs(wt[j]) do
+                        wt[j][k] = nil
+                    end
+                    seen[j] = true
                 end
                 wt[j][unicode.utf8.upper(buf:sub(buf:find(" ") + 1))] = true
             end
@@ -468,18 +501,31 @@ function genindex(fs, outname, authorindex)
             if not snum then
                 io.stderr:write("songidx:", fs["filename"], ":", fs["lineno"], ": incomplete song entry (orphan ", typ,
                     ")\n")
+                fileclose(fs)
                 return 2
             end
             local link = filereadln(fs)
             if not link then
                 io.stderr:write("songidx:", fs["filename"], ":", fs["lineno"],
                     ": incomplete song entry (missing hyperlink)\n")
+                fileclose(fs)
                 return 2
             end
             if authorindex then
                 local author, songtitle = buf:match("^(.-)%-%->(.*)$")
+                if not author then
+                    io.stderr:write("songidx:", fs["filename"], ":", fs["lineno"] - 2,
+                        ": malformed author entry (missing \"-->\" separator)\n")
+                    fileclose(fs)
+                    return 2
+                end
+                author = author:gsub("[\1\2\3]", ""):gsub("\\\\", "\\\1"):gsub("\\{", "\\\2"):gsub("\\}", "\\\3")
                 local i, a = 1
-                songtitle = rotate(unicode.utf8.gsub(unicode.utf8.gsub(songtitle, "([^%s\\])%s+$", "%1"), "^(%*?)%s+", "%1"))
+                songtitle = rotate(unicode.utf8.gsub(unicode.utf8.gsub(songtitle, "([^%s\\])%s+$", "%1"), "^(%*?)%s+", "%1"), langpre)
+                local alt = songtitle:sub(1, 1) == "*"
+                if alt then
+                    songtitle = songtitle:sub(2)
+                end
                 songtitle = "\\mdseries{" .. songtitle .. "}"
                 while true do
                     a, i = grabauthor(author, i)
@@ -490,16 +536,22 @@ function genindex(fs, outname, authorindex)
                     table.insert(songs, {
                         author = a, -- Autor
                         title = songtitle, -- Název písničky (NOVÉ!)
+                        alt = alt,
                         num = snum,
                         linkname = link,
                         idx = #songs
                     })
                 end
             else
-                buf = rotate(unicode.utf8.gsub(unicode.utf8.gsub(buf, "([^%s\\])%s+$", "%1"), "^(%*?)%s+", "%1"))
+                buf = rotate(unicode.utf8.gsub(unicode.utf8.gsub(buf, "([^%s\\])%s+$", "%1"), "^(%*?)%s+", "%1"), langpre)
+                local alt = buf:sub(1, 1) == "*"
+                if alt then
+                    buf = buf:sub(2)
+                end
                 buf = "\\mdseries{" .. buf .. "}"
                 table.insert(songs, {
                     title = buf,
+                    alt = alt,
                     num = snum,
                     linkname = link,
                     idx = #songs
@@ -532,7 +584,7 @@ function genindex(fs, outname, authorindex)
         end
     end
     for i = 1, #songs do
-        if i > 1 and songs[i]["title"] == songs[i - 1]["title"] then
+        if i > 1 and songs[i]["title"] == songs[i - 1]["title"] and songs[i]["alt"] == songs[i - 1]["alt"] then
             if not f:write("\\\\\\songlink{", songs[i]["linkname"], "}{", songs[i]["num"], "}") then
                 return errorout(f)
             end
@@ -547,8 +599,8 @@ function genindex(fs, outname, authorindex)
                     return errorout(f)
                 end
             end
-            if songs[i]["title"]:find("^%*") then
-                if not f:write("}\n\\idxaltentry{", songs[i]["title"]:sub(2)) then
+            if songs[i]["alt"] then
+                if not f:write("}\n\\idxaltentry{", songs[i]["title"]) then
                     return errorout(f)
                 end
             else
@@ -567,6 +619,7 @@ function genindex(fs, outname, authorindex)
         end
     end
 
+    closeout(f)
     return 0
 end
 
@@ -889,6 +942,10 @@ function genscriptureindex(fs, outname, biblename)
     local key = 0
     while true do
         local ref = filereadln(fs)
+        -- Skip directive lines (e.g. "%lang") that may appear in the data file.
+        while ref and ref:sub(1, 1) == "%" do
+            ref = filereadln(fs)
+        end
         if not ref then
             break
         end
@@ -1139,25 +1196,31 @@ function genindex_by_author(songs, outname)
         table.insert(authors_map[author], song)
     end
 
-    -- 2. Seřaď autory abecedně
+    -- 2. Seřaď autory abecedně (podle vyčištěného textu, ne podle TeX maker)
     local authors_list = {}
+    local author_keys = {}
     for author, _ in pairs(authors_map) do
         table.insert(authors_list, author)
+        -- Reuse cleantitle()/songcmp() semantics by wrapping the author string
+        -- in a pseudo-song record (the cleaned form is cached in the record).
+        author_keys[author] = {
+            title = author,
+            idx = 0
+        }
     end
     table.sort(authors_list, function(a, b)
-        return unicode.utf8.upper(a) < unicode.utf8.upper(b)
+        if songcmp(author_keys[a], author_keys[b]) then
+            return true
+        end
+        if songcmp(author_keys[b], author_keys[a]) then
+            return false
+        end
+        return a < b
     end)
 
-    -- 3. Seřaď písničky každého autora
+    -- 3. Seřaď písničky každého autora (stejné řazení jako titulní index)
     for _, author in ipairs(authors_list) do
-        table.sort(authors_map[author], function(s1, s2)
-            local t1 = unicode.utf8.upper(s1.title)
-            local t2 = unicode.utf8.upper(s2.title)
-            if t1 == t2 then
-                return s1.idx < s2.idx
-            end
-            return t1 < t2
-        end)
+        table.sort(authors_map[author], songcmp)
     end
 
     -- 4. Zapiš výstup

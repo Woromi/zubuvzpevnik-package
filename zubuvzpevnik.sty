@@ -124,6 +124,15 @@
 	\def\ZUB@printBb{B}%
 }
 
+% Write a "%lang <language>" directive line before each song's index entries
+% so that songidx.lua can apply per-language title rules (e.g. rotating the
+% English articles The/A/An while leaving the Czech conjunction "A" alone).
+% \@percentchar is the kernel's category-12 "%", written out literally.
+\xpatchcmd{\SB@addtoindex}
+	{\SB@cwrite{#1}{#2}}
+	{\SB@cwrite{#1}{\@percentchar lang \SB@songlang}\SB@cwrite{#1}{#2}}
+	{}{\PackageError{zubuvzpevnik}{Patching \string\SB@addtoindex\space (lang directive) failed}{}}
+
 % ==========================
 % Song metadata (key, tuning)
 % ==========================
