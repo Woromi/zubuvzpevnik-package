@@ -1,5 +1,11 @@
 \documentclass{scrartcl}
 \usepackage{pdfpages}
+% pdfpages flips every second booklet sheet by 180 (for long-edge duplex
+% printing) with no option to disable it; keep its rotation flag always off
+% so all pages share one orientation.
+\makeatletter
+\let\AM@sigrotatetrue\AM@sigrotatefalse
+\makeatother
 \begin{document}
 \includepdf[pages=-,booklet,turn=false,landscape]{\pdfname}
 \end{document}
