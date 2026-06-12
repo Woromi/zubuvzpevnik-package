@@ -1,5 +1,5 @@
 \NeedsTeXFormat{LaTeX2e}
-\ProvidesClass{taborovyzpevnik}[2026-06-12 Custom class for A5 booklet songbook]
+\ProvidesClass{taborovyzpevnik}[2026-06-13 Custom class for A5 booklet songbook]
 
 % ==========================
 % Base class
@@ -71,6 +71,9 @@
 % ==========================
 % Front cover
 % ==========================
+% Use \renewcommand{\campyear}{<year>}, so old songbooks rebuild unchanged.
+\newcommand{\campyear}{\the\year}
+
 \newcommand{\makefrontcover}{%
 	\clearpage
 	\pagestyle{empty}
@@ -82,7 +85,7 @@
 		\vfill
 		\includegraphics{img/kane}
 		\vfill
-		{\Large\setmainfont{TheMix C5 Bold} \@title~\the\year\par}
+		{\Large\setmainfont{TheMix C5 Bold} \@title~\campyear\par}
 		\vfill
 	\end{titlepage}
 
@@ -107,7 +110,7 @@
 	\input{akordy}
 	\null\vfill
 	\begin{center}
-		{\small \ifblank{#1}{}{#1 \\ }Sestavil: \@author~\the\year{}}
+		{\small \ifblank{#1}{}{#1 \\ }Sestavil: \@author~\campyear{}}
 	\end{center}
 	\null
 
