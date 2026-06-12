@@ -1,5 +1,5 @@
 \NeedsTeXFormat{LaTeX2e}
-\ProvidesClass{taborovyzpevnik}[2025/06/07 Custom class for A5 booklet songbook]
+\ProvidesClass{taborovyzpevnik}[2026-06-12 Custom class for A5 booklet songbook]
 
 % ==========================
 % Base class
@@ -107,7 +107,7 @@
 	\input{akordy}
 	\null\vfill
 	\begin{center}
-		{\small \ifx\relax#1\else #1 \\ \fi Sestavil: \@author~\the\year{}}
+		{\small \ifblank{#1}{}{#1 \\ }Sestavil: \@author~\the\year{}}
 	\end{center}
 	\null
 
@@ -121,10 +121,10 @@
 % Fill booklet pages (multiple of 4)
 % ==========================
 \RequirePackage{modulus}
+\newcounter{extrablankpages}
 \newcommand{\padbookletpages}[1][4]{%
 	\clearpage
 	\modulo{\numexpr \value{page}-1 \relax}{#1}%
-	\newcounter{extrablankpages}%
 	\ifnum\remainder=0
 		\setcounter{extrablankpages}{0}%
 	\else

@@ -1,5 +1,5 @@
 \NeedsTeXFormat{LaTeX2e}
-\ProvidesClass{velkyzpevnik}[2025/08/22 Class for large A4 songbook]
+\ProvidesClass{velkyzpevnik}[2025-08-22 Class for large A4 songbook]
 
 % ==========================
 % Base class
@@ -50,7 +50,7 @@
 \RequirePackage{fancyhdr}
 \pagestyle{fancy}
 \fancyhf{}
-\fancyfoot[C]{\thepage} % Page numbers on outer corners
+\fancyfoot[C]{\thepage} % Page number centered in the footer
 \renewcommand{\headrulewidth}{0pt} % no header line
 \renewcommand{\footrulewidth}{0pt} % no footer line
 

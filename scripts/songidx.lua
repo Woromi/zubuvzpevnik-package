@@ -17,6 +17,21 @@
 --
 -- The latest version of this program can be obtained from
 -- http://songs.sourceforge.net.
+--
+-- ============================================================
+-- This is a vendored copy of songidx.lua v3.0 from the songs
+-- package (it is not shipped by TeX Live / Debian, so this copy
+-- is the only one on the system). It carries local modifications
+-- for this songbook; when updating from upstream, port them over:
+--  * "%lang <language>" directive support: zubuvzpevnik.sty writes
+--    a directive line before each song's index entries, switching
+--    the prefix-word list (see `prelists`) per language — so the
+--    English articles The/A/An rotate to the end of the title
+--    while e.g. the Czech conjunction "A" is left alone.
+--  * Czech collation: the digraph "Ch" forms its own index block
+--    when the locale collates "CH" after "H" (as cs_CZ does).
+--  * Reformatted (4-space indent), so diff upstream with -w.
+-- ============================================================
 VERSION = "3.0"
 BIBLEDEFAULT = "bible.can"
 
