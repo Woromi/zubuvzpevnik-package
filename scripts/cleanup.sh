@@ -11,6 +11,3 @@ find "$SCRIPT_DIR/.." -name .git -prune -o -type f \( \
     -o -name '*.idx' -o -name '*.ilg' -o -name '*.ind' -o -name '*.sxc' \
     -o -name '*.sxd' -o -name '*.fls' -o -name '*.fdb_latexmk' -o -name '*.aut' \
     \) -exec rm -f {} +
-
-# Remove the zubuvzpevnik package installed by install.sh
-"$SCRIPT_DIR/uninstall.sh"

@@ -28,6 +28,25 @@
 \RequirePackage{xstring}
 
 % ==========================
+% LilyPond include path
+% ==========================
+% Point lyluatex at this package's own lilypond/ directory so song fragments
+% can \include "zubuvzpevnik.ily" by bare name, with no copy into songs/.
+% kpse finds the package whether it is reached via TEXINPUTS (building this
+% repo) or installed in ~/texmf (standalone use), so the same path works in
+% both cases. Appended to any existing includepaths so a host document's own
+% paths are preserved.
+\directlua{
+  local sty = kpse.find_file("zubuvzpevnik.sty")
+  if sty then
+    local dir = sty:match("(.*/)") .. "lilypond"
+    local cur = lua_options.get_option("ly", "includepaths") or ""
+    lua_options.set_option("ly", "includepaths",
+      cur == "" and dir or cur .. "," .. dir)
+  end
+}
+
+% ==========================
 % Fonts
 % ==========================
 \babelfont{rm}{Open Sans}

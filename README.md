@@ -2,6 +2,8 @@
 
 A customization of the [songs](https://songs.sourceforge.net/) LaTeX package, styled to look like my old songbook originally written in Word.
 
+To use this package in your own LaTeX documents, make it visible to LaTeX one of two ways: run `scripts/install.sh` to copy it into your home TeX tree (`~/texmf/tex/latex/`; `scripts/uninstall.sh` removes it again), or add this directory to `TEXINPUTS` without copying — the approach this repo's build scripts use. It locates its own LilyPond includes either way.
+
 ## zubuvzpevnik.sty
 
 The core package, built on top of `songs`. It provides:
@@ -29,4 +31,4 @@ Song part definitions imported by `zubuvzpevnik.sty`: `sloka.cfg` (verse), `refr
 
 ## lilypond/
 
-Shared LilyPond includes (`zubuvzpevnik.ily`, `tinwhistle.ily`) for songs with embedded sheet music. `scripts/install.sh` copies them next to the song sources.
+Shared LilyPond includes (`zubuvzpevnik.ily`, `tinwhistle.ily`) for songs with embedded sheet music. `zubuvzpevnik.sty` adds this directory to lyluatex's include path (locating it via kpse), so song fragments can `\include "zubuvzpevnik.ily"` by bare name — no copying required.

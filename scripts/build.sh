@@ -9,7 +9,7 @@ if [ $# -lt 1 ]; then
     echo "  -e lang[,...] : exclude songs with given language(s)"
     echo "  -o output     : output PDF filename (without extension)"
     echo "  -v            : verbose output"
-    echo "  -c            : cleanup build files and uninstall packages after build"
+    echo "  -c            : cleanup build files after build"
     exit 1
 fi
 
@@ -67,8 +67,14 @@ run_lualatex() {
     fi
 }
 
-echo "Installing necessary packages..."
-"$SCRIPT_DIR/install.sh"
+# The zubuvzpevnik package is found via TEXINPUTS (set in each project's
+# build.sh) and locates its own lilypond includes, so no install step is needed.
+# Warn early — before the long first pass — if indexes will be sorted without a
+# Czech locale; buildindex.sh re-checks and falls back at sort time.
+if [ -n "$indexFiles" ] && ! locale -a 2>/dev/null | grep -Eiq '^cs_CZ(\.utf-?8)?$'; then
+    echo "WARNING: no Czech locale (cs_CZ) found; song indexes will sort with the"
+    echo "         system default locale. On Debian/Ubuntu: sudo locale-gen cs_CZ.UTF-8"
+fi
 
 echo "First iteration of lualatex..."
 run_lualatex "$verbose"
