@@ -83,13 +83,16 @@
 	\ifblank{#1}{%
 		\begin{titlepage}
 			\centering
-			\null\vfill
+			\vspace*{-21pt}
 			{\fontsize{72}{75}\bfseries\setmainfont{SKAUT Bold} Zpěvník\par}
+			\vspace{16pt}
+			\includegraphics[width=350pt]{img/kane}\par
 			\vfill
-			\includegraphics{img/kane}
-			\vfill
-			{\Large\setmainfont{TheMix C5 Bold} \@title~\campyear\par}
-			\vfill
+			% Camp name centered, with the year on its own line below it in the
+			% footer (flush right).
+			{\large\setmainfont{TheMix C5 Bold}\@title\par}
+			\vspace{3pt}
+			\makebox[\textwidth][r]{\small\setmainfont{TheMix C5 SemiLight}\campyear}
 		\end{titlepage}
 	}{%
 		\includepdf[pages={1}]{#1}%
