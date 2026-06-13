@@ -55,12 +55,6 @@
 \babelfont[hebrew]{rm}{FreeSans}
 
 % ==========================
-% Quotes fix
-% ==========================
-\DeclareQuoteAlias{czech}{quotes}
-\renewcommand{\uv}[1]{\enquote{#1}}
-
-% ==========================
 % Internal defaults (overridable by class)
 % ==========================
 \newcommand{\zub@lyricfont}{\ttfamily}
@@ -78,14 +72,6 @@
 \renewcommand{\notefont}{\normalfont\itshape}
 
 % ==========================
-% Index setup
-% ==========================
-\newindex{obsah}{obsah}
-\indexsongsas{obsah}{\thepage}
-\newauthorindex{obsahAutor}{obsahAutor}
-\indexsongsas{obsahAutor}{\thepage}
-
-% ==========================
 % Layout inside songs
 % ==========================
 \baselineadj=2pt plus 2.5pt minus 0.5pt
@@ -98,143 +84,6 @@
 \spenalty=-10000 % Pisnicka na nove strance
 \setlength{\sbarheight}{0pt} % Odstraneni vodorovne cary pred a za pisnickou
 \setlength{\songnumwidth}{0cm} % Zrusi cislovani pisnicek
-
-% ==========================
-% Capo
-% ==========================
-\renewcommand\capo[1]{%
-	\iftranscapos
-		\transpose{#1}%
-	\else
-		\vspace{-1em}\musicnote{\textit{Capo #1}}%
-	\fi
-}
-
-% ==========================
-% Czech chords (H = English B, B = English B-flat)
-% ==========================
-% The songs package only supports 7 note names, but the Czech system has an
-% eighth one: B means English B-flat. Patch the transposition scanner so that
-%  - input: a note name matching none of the seven \notenames is compared
-%    against \ZUB@noteBb and read as B-flat (semitone 1),
-%  - output: semitone 1 prints \ZUB@printBb instead of \printnoteB\flt,
-%    so with Czech names it prints "B" rather than the nonsense "Hb".
-\newcommand\ZUB@noteBb{\relax}% never matches a note name => disabled
-\newcommand\ZUB@printBb{\printnoteB\noexpand\flt}
-
-\patchcmd\SB@trtrans
-	{\else-99 \fi}
-	{\else\ifx\SB@temp\ZUB@noteBb\@ne\else-99 \fi\fi}
-	{}{\PackageError{zubuvzpevnik}{Patching \string\SB@trtrans\space (note input) failed}{}}
-\patchcmd\SB@trtrans
-	{\printnoteB\noexpand\flt\or\printnoteB\or}
-	{\ZUB@printBb\or\printnoteB\or}
-	{}{\PackageError{zubuvzpevnik}{Patching \string\SB@trtrans\space (note output) failed}{}}
-
-\newcommand{\englishchords}{%
-	\notenames{A}{B}{C}{D}{E}{F}{G}%
-	\def\ZUB@noteBb{\relax}%
-	\def\ZUB@printBb{\printnoteB\noexpand\flt}%
-}
-
-\newcommand{\czechchords}{%
-	\notenames{A}{H}{C}{D}{E}{F}{G}%
-	\def\ZUB@noteBb{B}%
-	\def\ZUB@printBb{B}%
-}
-
-% Write a "%lang <language>" directive line before each song's index entries
-% so that songidx.lua can apply per-language title rules (e.g. rotating the
-% English articles The/A/An while leaving the Czech conjunction "A" alone).
-% \@percentchar is the kernel's category-12 "%", written out literally.
-\xpatchcmd{\SB@addtoindex}
-	{\SB@cwrite{#1}{#2}}
-	{\SB@cwrite{#1}{\@percentchar lang \SB@songlang}\SB@cwrite{#1}{#2}}
-	{}{\PackageError{zubuvzpevnik}{Patching \string\SB@addtoindex\space (lang directive) failed}{}}
-
-% ==========================
-% Song metadata (key, tuning)
-% ==========================
-\newcommand{\key}{}
-\newsongkey{key}{\def\key{}}{\def\key{\small \bfseries{Key}: {\mdseries#1}\par}}
-
-\newcommand{\tuning}{}
-\newsongkey{tun}{\def\tuning{}}{\def\tuning{\small \bfseries{Tuning}: {\mdseries#1}\par}}
-
-\newcommand{\tempo}{}
-\newsongkey{tem}{\def\tempo{}}{\def\tempo{\small \bfseries{Tempo}: {\mdseries#1}\par}}
-
-\newcommand{\original}{}
-\newsongkey{ori}{\def\original{}}{\def\original{\small \bfseries{Original}: {\mdseries#1}\par}}
-
-\newcommand{\usedchords}{}
-\newsongkey{chr}{\def\usedchords{}}{\def\usedchords{#1\par}}
-
-\newcommand{\SB@songlang}{}
-\newsongkey{lang}
-{\gdef\SB@songlang{}\selectlanguage{english}\englishchords}%
-{\gdef\SB@songlang{#1}\selectlanguage{#1}%
-	\ifthenelse{\equal{#1}{czech}\OR\equal{#1}{slovak}}{\czechchords}{\englishchords}
-}
-
-\newcommand{\sourcelink}{}
-\newsongkey{src}{\def\sourcelink{}}{\def\sourcelink{\url{#1}\par}}
-
-\renewcommand{\extendprelude}{{%
-			\usedchords
-			\showrefs
-			\original
-			\tempo
-			\tuning
-			\key
-		}}
-
-\renewcommand\makeprelude{%
-	\resettitles
-	{\Large\bfseries\songtitle\space\mdseries\smalleronsmallpage[1](\songauthors)}%
-	\iflargepaper
-		\hfill
-		\raisebox{0pt}[0pt][0pt]{%
-			\makebox[0pt][r]{% Box nulové šířky zarovnaný doprava
-				\parbox[t]{7cm}{% Box s textem
-					\raggedleft % Zarovnání textu uvnitř boxu doprava
-					\extendprelude % Metadata
-				}%
-			}%
-		}%
-	\fi
-}
-
-% ==========================
-% Filter songs by language
-% ==========================
-% \providecommand: build.sh may have already defined these on the command line
-\providecommand\ZUB@includelangs{}
-\providecommand\ZUB@excludelangs{}
-
-\newcommand\includelangs[1]{\renewcommand\ZUB@includelangs{#1}}
-\newcommand\excludelangs[1]{\renewcommand\ZUB@excludelangs{#1}}
-
-\let\SB@origsubmitsong\SB@submitsong
-\renewcommand\SB@submitsong{%
-  \ifthenelse{\equal{\ZUB@includelangs}{}}{%
-    \ifthenelse{\equal{\ZUB@excludelangs}{}}{%
-      \SB@origsubmitsong
-    }{%
-      \IfSubStr{\ZUB@excludelangs}{\SB@songlang}{%
-        \setbox\SB@songbox\box\voidb@x\addtocounter{songnum}{-1}%
-      }{%
-        \SB@origsubmitsong
-      }%
-    }%
-  }{%
-    \IfSubStr{\ZUB@includelangs}{\SB@songlang}{%
-      \SB@origsubmitsong
-    }{%
-      \setbox\SB@songbox\box\voidb@x\addtocounter{songnum}{-1}%
-    }%
-  }%
-}
 
 % ==========================
 % Environments
@@ -268,31 +117,27 @@
 }
 
 % ==========================
-% Chord diagram patches
+% Features
 % ==========================
-% change barre position size and font to mono
-\patchcmd{\SB@fretnum}
-{\sffamily\fontsize\@xpt\@xpt\selectfont#1}
-{\ttfamily\small#1}{}{}
-
-\patchcmd{\SB@topempty}
-{\relax}
-{{\vrule\@width\z@\@height4.3333\p@\@depth.8333\p@}}{}{}
-
+% Localization: per-song language, Czech/English chord names, language
+% filtering, index sorting directive and Czech quotes.
+\import{feature/}{lokalizace.cfg}
+% Index registration and formatting (title + author index)
+\import{feature/}{obsah.cfg}
+% Song metadata keys (key/tuning/tempo/...) and the prelude layout
+\import{feature/}{metadata.cfg}
+% Chord display: capo notation and chord-diagram appearance
+\import{feature/}{akordy.cfg}
+% Multi-voice support (second voice, role labels)
+\import{feature/}{hlasy.cfg}
 
 % ==========================
 % Song parts
 % ==========================
-
 \import{songpart/}{sloka.cfg}
 % Changed chorus environment to look more like a verse with 'R:'
 \import{songpart/}{refren.cfg}
 % Chords only songpart. The chords have a fixed width
 \import{songpart/}{instrumental.cfg}
-% Indexing song titles with authors
-\import{songpart/}{index.cfg}
-
-% Multi-voice support
-\import{songpart/}{voices.cfg}
 
 \endinput
