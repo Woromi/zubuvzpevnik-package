@@ -74,20 +74,26 @@
 % Use \renewcommand{\campyear}{<year>}, so old songbooks rebuild unchanged.
 \newcommand{\campyear}{\the\year}
 
-\newcommand{\makefrontcover}{%
+% Optional argument: a hand-made cover PDF whose first page replaces the
+% generated title page (the 2025 songbook used one, because its tengwar
+% title could not be typeset in LaTeX at the time).
+\newcommand{\makefrontcover}[1][]{%
 	\clearpage
 	\pagestyle{empty}
-	%	\includepdf[pages={1}]{Zpěvník 2025.pdf}
-	\begin{titlepage}
-		\centering
-		\null\vfill
-		{\fontsize{72}{75}\bfseries\setmainfont{SKAUT Bold} Zpěvník\par}
-		\vfill
-		\includegraphics{img/kane}
-		\vfill
-		{\Large\setmainfont{TheMix C5 Bold} \@title~\campyear\par}
-		\vfill
-	\end{titlepage}
+	\ifblank{#1}{%
+		\begin{titlepage}
+			\centering
+			\null\vfill
+			{\fontsize{72}{75}\bfseries\setmainfont{SKAUT Bold} Zpěvník\par}
+			\vfill
+			\includegraphics{img/kane}
+			\vfill
+			{\Large\setmainfont{TheMix C5 Bold} \@title~\campyear\par}
+			\vfill
+		\end{titlepage}
+	}{%
+		\includepdf[pages={1}]{#1}%
+	}%
 
 	% Inside front cover = TOC
 	\clearpage

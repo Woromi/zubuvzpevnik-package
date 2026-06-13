@@ -21,7 +21,7 @@ Class for the big A4 songbook, based on `article` and using `zubuvzpevnik`. Defi
 
 ## taborovyzpevnik.cls
 
-Class for the small A5 camp songbook, based on `book` and using `zubuvzpevnik`. Defines the front cover, table of contents on the inside front cover, page numbering, and a back cover with a chord overview and credits. `\padbookletpages` fills the document with blank pages to a multiple of 4 so that `scripts/makebooklet.sh` can reorder it into a printable booklet. The cover uses the SKAUT Bold and TheMix C5 fonts.
+Class for the small A5 camp songbook, based on `book` and using `zubuvzpevnik`. Defines the front cover, table of contents on the inside front cover, page numbering, and a back cover with a chord overview and credits. The year on the covers comes from `\campyear`, which defaults to the year of the build — each camp project pins it (`\renewcommand{\campyear}{2025}`) so that old songbooks can be rebuilt unchanged. A hand-made cover PDF can be used instead of the generated title page by passing it as `\makefrontcover[cover.pdf]` (the 2025 songbook had one, with a tengwar title). `\padbookletpages` fills the document with blank pages to a multiple of 4 so that `scripts/makebooklet.sh` can reorder it into a printable booklet. The cover uses the SKAUT Bold and TheMix C5 fonts.
 
 ## songpart/
 
