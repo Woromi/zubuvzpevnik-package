@@ -134,7 +134,17 @@ The most recently defined chorus is the one repeated. Put `\beginchorus` on its 
 
 ## Chords
 
-**Czech vs. English note names.** The note names follow the song's `lang`: Czech and Slovak songs use the Czech system (**H** = English B, **B** = English B-flat), everything else uses English names (B, B♭). This is selected automatically by the `lang` key; the underlying switches are `\czechchords` / `\englishchords`.
+**Czech vs. English note names.** The note names follow the song's `lang`: Czech and Slovak songs use the German/Czech system (**H** = English B, **B** = English B-flat), everything else uses English names (B, B♭). This is selected automatically by the `lang` key; the underlying switches are `\germanchords` (alias `\czechchords`) / `\englishchords`.
+
+**Forcing one printed convention for the whole book.** Put one of these in the preamble to make *every* song print its chords in the same system, regardless of language:
+
+```latex
+\useenglishchords   % print all chords in English names (B, B♭)
+\usegermanchords    % print all chords in German/Czech names (H, B); \useczechchords is an alias
+\useautochords      % default: each song follows its own language
+```
+
+Each song's chords are still *read* in its own language — so a Czech `\[H]` is understood as B-natural and *printed* as `B` under `\useenglishchords`, while a Czech `\[B]` (B-flat) prints as `B♭`. Only the printed names change; `\selectlanguage` (hyphenation, quotes) and the index still follow each song's `lang`. The commands also work mid-document, between songs, to switch a section. Note that transliterating across systems routes chords through the transposer, so accidentals are re-spelled to flats by default — add `\prefersharps` if you want sharps.
 
 **Capo.** `\capo{n}` either prints a *Capo n* note (default) or actually transposes the chords by `n` semitones when capo transposition is enabled (the `songs` `transposecapos` option).
 
