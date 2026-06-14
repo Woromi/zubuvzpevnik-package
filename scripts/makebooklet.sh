@@ -23,17 +23,23 @@ while [ $# -gt 1 ]; do
     esac
 done
 
-booklet_cmd=(lualatex -interaction=nonstopmode -halt-on-error \
-    "--jobname=${1}Booklet" "\\def\\pdfname{$1.pdf}\\input{$SCRIPT_DIR/makebooklet.tex}")
+jobname=$1
+
+# Impose two A5 pages per A4 sheet. --short-edge: short-edge duplex (uniform
+# orientation). --no-crop: keep the A5 margins.
+booklet_cmd=(pdfbook2 --paper=a4paper --short-edge --no-crop "${jobname}.pdf")
 
 echo "Creating booklet..."
 if [ "$verbose" -eq 1 ]; then
     "${booklet_cmd[@]}"
-elif ! "${booklet_cmd[@]}" > /dev/null 2>&1; then
-    echo "lualatex failed, end of ${1}Booklet.log:"
-    tail -n 30 "${1}Booklet.log"
+elif ! out=$("${booklet_cmd[@]}" 2>&1); then
+    echo "pdfbook2 failed:"
+    echo "$out" | tail -n 30
     exit 1
 fi
+
+# pdfbook2 writes <jobname>-book.pdf; rename to the expected <jobname>Booklet.pdf
+mv -f "${jobname}-book.pdf" "${jobname}Booklet.pdf"
 
 if [ "$cleanup" -eq 1 ]; then
     echo "Cleaning build files, uninstalling packages..."
