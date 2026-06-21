@@ -77,7 +77,7 @@ Inside a song you can use these parts (all but the chorus are verse-based and sh
 | Pre-chorus | `\beginprechorus … \endprechorus` | `P` | |
 | Intro | `\beginintro … \endintro` | *(none)* | |
 | Outro | `\beginoutro … \endoutro` | *(none)* | |
-| Instrumental | `\begininstrumental … \endinstrumental` (or `\begin{instrumental} … \end{instrumental}`) | — | chords only, fixed-width |
+| Instrumental | `\begininstrumental … \endinstrumental` | — | chords only, fixed-width |
 
 **Chorus.** Rather than the `songs` package's left-hand bar, the chorus is styled like a verse with a bold `R:` in place of the verse number and a slightly larger indent. It is still the `songs` chorus underneath. See also [Repeating the chorus](#repeating-the-chorus).
 
@@ -92,7 +92,7 @@ Inside a song you can use these parts (all but the chorus are verse-based and sh
 
 The part renders as a verse whose number slot shows `label` and whose indent is `indent × em`. An empty label prints no marker — that's how the unnumbered parts (intro/outro/instrumental) work. An optional `[setup]` runs extra code in the part body — pass **`\chordsonly`** (see below) to make any part chords-only.
 
-**Instrumental.** `\begininstrumental … \endinstrumental` (or the `\begin{instrumental} … \end{instrumental}` environment) typesets chords only, each chord in a fixed-width box (so chord-only passages align). It is just `\newSongPartType[\chordsonly]{instrumental}{}{0}` — the **`\chordsonly`** style is reusable, so you can give any part type the same look (`solo`, a song-specific break, …) with `\newSongPartType[\chordsonly]{name}{}{0}`. The chord width defaults to `2em`; change it with:
+**Instrumental.** `\begininstrumental … \endinstrumental` typesets chords only, each chord in a fixed-width box (so chord-only passages align). It is just `\newSongPartType[\chordsonly]{instrumental}{}{0}` — the **`\chordsonly`** style is reusable, so you can give any part type the same look (`solo`, a song-specific break, …) with `\newSongPartType[\chordsonly]{name}{}{0}`. The chord width defaults to `2em`; change it with:
 
 ```latex
 \setchordwidth{2.5em}
@@ -102,14 +102,14 @@ The part renders as a verse whose number slot shows `label` and whose indent is 
 
 ```latex
 % Just this interlude replays the verse's chords:
-\begin{instrumental}\usechords{verse}
+\begininstrumental\usechords{verse}
     | ^ | ^ | ^ | ^ |
-\end{instrumental}
+\endinstrumental
 
 % This interlude AND every later instrumental replay the verse (one call):
-\begin{instrumental}\copychords{verse}
+\begininstrumental\copychords{verse}
     | ^ | ^ | ^ | ^ |
-\end{instrumental}
+\endinstrumental
 ```
 
 Both go *inside* a part and name the source. `\usechords{source}` replays the source's chords in that one part; `\copychords{source}` copies them into the part's own register, so that part **and every later part of the same type** replay them — one `\copychords` covers a run of identical interludes. `verse` names the shared register that plain verses use; other names are part types (`instrumental`, `bridge`, …) or any register you declare with `\newchords`.

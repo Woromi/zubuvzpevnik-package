@@ -54,6 +54,6 @@ Built-in parts: `bridge`, `intro`, `outro`, `prechorus`, and `instrumental` (bel
 \newSongPartType[\chordsonly]{solo}{}{0}
 ```
 
-The built-in instrumental is exactly `\newSongPartType[\chordsonly]{instrumental}{}{0}`. `\begin{instrumental}` is kept as an alias — `\let\instrumental\begininstrumental` — so `\begin` runs `\instrumental` and `\end` runs the factory's `\endinstrumental` (which `\newSongPartType` defines with `\NewDocumentCommand`, since `\newcommand` refuses names starting with `end`). Aliasing rather than `\newenvironment` avoids redefining that `\endinstrumental`.
+The built-in instrumental is exactly `\newSongPartType[\chordsonly]{instrumental}{}{0}`, used as `\begininstrumental … \endinstrumental` like every other part. (`\newSongPartType` defines the `\end<name>` with `\NewDocumentCommand`, since `\newcommand` refuses names starting with `end`.)
 
 There is **no `\ifchorded` guard**: a chords-only part in a `lyric` build simply renders empty (chords suppressed). The old guard wrapped only the verse, not its `\[...]` body, so in `lyric` mode the orphaned `\[` started display math and errored — dropping it fixes that.
