@@ -77,24 +77,42 @@ Inside a song you can use these parts (all but the chorus are verse-based and sh
 | Pre-chorus | `\beginprechorus … \endprechorus` | `P` | |
 | Intro | `\beginintro … \endintro` | *(none)* | |
 | Outro | `\beginoutro … \endoutro` | *(none)* | |
-| Instrumental | `\begin{instrumental} … \end{instrumental}` | — | chords only, fixed-width |
+| Instrumental | `\begininstrumental … \endinstrumental` (or `\begin{instrumental} … \end{instrumental}`) | — | chords only, fixed-width |
 
 **Chorus.** Rather than the `songs` package's left-hand bar, the chorus is styled like a verse with a bold `R:` in place of the verse number and a slightly larger indent. It is still the `songs` chorus underneath. See also [Repeating the chorus](#repeating-the-chorus).
 
 **Verse-based parts and your own.** Bridge/pre-chorus/intro/outro are created with one helper, so you can add more:
 
 ```latex
-% \newSongPartType{name}{label}{indent-in-em}
-\newSongPartType{solo}{S}{3}   % defines \beginsolo … \endsolo, labelled "S"
+% \newSongPartType[setup]{name}{label}{indent-in-em}
+\newSongPartType{solo}{S}{3}                  % \beginsolo … \endsolo, labelled "S"
+\newSongPartType{interlude}{}{0}              % empty label = unnumbered (like intro)
+\newSongPartType[\chordsonly]{guitarsolo}{}{0}  % chords-only (like instrumental)
 ```
 
-The part renders as an (unnumbered) verse whose number slot shows `label` and whose indent is `indent × em`. An empty label prints no marker (that's how intro/outro work).
+The part renders as a verse whose number slot shows `label` and whose indent is `indent × em`. An empty label prints no marker — that's how the unnumbered parts (intro/outro/instrumental) work. An optional `[setup]` runs extra code in the part body — pass **`\chordsonly`** (see below) to make any part chords-only.
 
-**Instrumental.** `\begin{instrumental} … \end{instrumental}` typesets chords only, each chord in a fixed-width box (so chord-only passages align). It renders only when chords are shown (`chorded`). The chord width defaults to `2em`; change it with:
+**Instrumental.** `\begininstrumental … \endinstrumental` (or the `\begin{instrumental} … \end{instrumental}` environment) typesets chords only, each chord in a fixed-width box (so chord-only passages align). It is just `\newSongPartType[\chordsonly]{instrumental}{}{0}` — the **`\chordsonly`** style is reusable, so you can give any part type the same look (`solo`, a song-specific break, …) with `\newSongPartType[\chordsonly]{name}{}{0}`. The chord width defaults to `2em`; change it with:
 
 ```latex
 \setchordwidth{2.5em}
 ```
+
+**Chord memory across parts.** The `songs` package can memorize a part's chords and replay them in a later part with `^` markers in place of the chords (see the `songs` manual's *Replaying chords*). Each part **type** keeps its own chord memory — a repeated verse replays the verse's chords, a repeated instrumental replays the instrumental's, and so on — so an instrumental's chords never accidentally become a verse's replayed chords. When you *do* want a part to replay another type's chords, say so explicitly:
+
+```latex
+% Just this interlude replays the verse's chords:
+\begin{instrumental}\usechords{verse}
+    | ^ | ^ | ^ | ^ |
+\end{instrumental}
+
+% This interlude AND every later instrumental replay the verse (one call):
+\begin{instrumental}\copychords{verse}
+    | ^ | ^ | ^ | ^ |
+\end{instrumental}
+```
+
+Both go *inside* a part and name the source. `\usechords{source}` replays the source's chords in that one part; `\copychords{source}` copies them into the part's own register, so that part **and every later part of the same type** replay them — one `\copychords` covers a run of identical interludes. `verse` names the shared register that plain verses use; other names are part types (`instrumental`, `bridge`, …) or any register you declare with `\newchords`.
 
 **Multi-voice.** For two simultaneous voices on one line, use `\multivoice` inside the lyrics — the main text on top, the second voice in smaller gray type just below:
 
@@ -246,7 +264,7 @@ zubuvzpevnik/
 │  ├── metadata.cfg         #   song metadata keys + the prelude box
 │  ├── akordy.cfg           #   capo + chord-diagram styling
 │  └── hlasy.cfg            #   multi-voice (\multivoice, \role)
-├── songpart/               # structural song sections
+├── songpart/               # structural song sections (see songpart/README.md for internals)
 │  ├── sloka.cfg            #   verse + \newSongPartType (bridge/prechorus/intro/outro)
 │  ├── refren.cfg           #   chorus + \insertchorus / \insertchorus*
 │  └── instrumental.cfg     #   chords-only part
