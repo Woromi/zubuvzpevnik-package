@@ -39,7 +39,7 @@ Both go *inside* a part and name a source part:
 
 ## `\newSongPartType{name}{label}{indent}`
 
-Signature `{O{} m m m}`: an optional `[setup]`, then name/label/indent. It declares the part's register and defines `\begin<name>`/`\end<name>` on the core, passing `[setup]` through as the body code.
+Signature `{O{} m m m}`: an optional `[setup]`, then name/label/indent. It declares the part's register, defines the `\begin<name>` command on the core (passing `[setup]` through as the body code), and wraps it in a `\newenvironment{<name>}` so **both** `\begin<name>…\end<name>` and `\begin{<name>}…\end{<name>}` work — same as the `songs` package's own `verse`/`chorus`. `\newenvironment` defines `\<name>` (what `\begin{<name>}` calls) and `\end<name>` (shared by `\end{<name>}` and the bare command), and sidesteps `\newcommand`'s refusal of `end`-prefixed names. Don't mix the two spellings within one part — `\begin<name>…\end{<name>}` trips LaTeX's environment checker, exactly as it would for `verse`/`chorus`.
 
 - An empty `label` prints no marker (see `\printversenum`, which prints the trailing dot only for a non-empty label) — that is how `intro`/`outro`/`instrumental` get their unnumbered look; a non-empty label (`*`, `P`) sits in the number slot.
 - `[setup]` runs in the part body — e.g. `\chordsonly`.
@@ -54,6 +54,6 @@ Built-in parts: `bridge`, `intro`, `outro`, `prechorus`, and `instrumental` (bel
 \newSongPartType[\chordsonly]{solo}{}{0}
 ```
 
-The built-in instrumental is exactly `\newSongPartType[\chordsonly]{instrumental}{}{0}`, used as `\begininstrumental … \endinstrumental` like every other part. (`\newSongPartType` defines the `\end<name>` with `\NewDocumentCommand`, since `\newcommand` refuses names starting with `end`.)
+The built-in instrumental is exactly `\newSongPartType[\chordsonly]{instrumental}{}{0}`, used as `\begininstrumental … \endinstrumental` like every other part (or `\begin{instrumental} … \end{instrumental}` — both work).
 
 There is **no `\ifchorded` guard**: a chords-only part in a `lyric` build simply renders empty (chords suppressed). The old guard wrapped only the verse, not its `\[...]` body, so in `lyric` mode the orphaned `\[` started display math and errored — dropping it fixes that.
