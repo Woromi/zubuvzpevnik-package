@@ -1,0 +1,21 @@
+# latexindent config for the zubuvzpevnik songbook.
+# Wire your editor's latexindent at this file, e.g.:
+#   latexindent -l /path/to/latexindent.yaml <file>
+# (in VS Code/VSCodium LaTeX Workshop: add "-l", "<abs-path>/latexindent.yaml"
+#  to the "latex-workshop.latexindent.args" setting).
+#
+# Two song-specific tweaks:
+#  - \[...] is a CHORD, not display math, so turn off latexindent's \[ \] handler.
+#  - song parts use \beginX ... \endX (not \begin{X}); treat them as indentable
+#    blocks. The pattern excludes \begin{...} (real environments) and
+#    \beginsong/\endsong, so part content sits at one indent level, not two.
+#
+# 4 spaces (matches the existing song metadata), not latexindent's default tab.
+defaultIndent: '    '
+specialBeginEnd:
+    displayMath:
+        lookForThis: 0
+    SongPart:
+        begin: '\\begin(?!\{)(?!song\b)[a-zA-Z]+\*?'
+        end:   '\\end(?!\{)(?!song\b)[a-zA-Z]+\*?'
+        lookForThis: 1
