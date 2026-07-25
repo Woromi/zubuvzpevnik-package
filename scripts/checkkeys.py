@@ -62,6 +62,7 @@ Usage:
     scripts/checkkeys.py --missing       # only propose keys for songs lacking one
     scripts/checkkeys.py --all           # show every song, not just disagreements
     scripts/checkkeys.py --explain PATH  # show why a key is detected (the workings)
+    scripts/checkkeys.py --parts PATH    # detect a key per song part (spot modulations)
 """
 
 import argparse
@@ -190,8 +191,8 @@ def parse_key_fields(val, german):
     """Parse a key={} value to the list of keys it names, in order. A song that
     modulates lists them all ("Cm -> C"); the first is the home key. Ignores a
     trailing '(... whistle)' annotation."""
-    val = re.sub(r"\(.*?\)", "", val)
-    val = re.sub(r"\\rightarrow|\\to\b", "→", val).replace("$", " ")
+    val = re.sub(r"\(.*?\)", "", val).replace("\\ ", " ")   # \  is an escaped space
+    val = re.sub(r"\\(?:textrightarrow|rightarrow|to)\b", "→", val).replace("$", " ")
     specs = [parse_key_field(part, german) for part in KEY_SPLIT_RE.split(val)]
     return [s for s in specs if s]
 
@@ -246,7 +247,7 @@ def load(path):
     modulates = False
     chords = []
     parts = []                # (part type, chords in it, text elided with "...")
-    cur, start = [], None
+    cur, start, cur_level = [], None, 0
     for m in TOKEN_RE.finditer(text):
         if m.group(1) is not None:
             level += int(m.group(1))
@@ -264,21 +265,24 @@ def load(path):
                 pc, minor = c
                 if home is None:
                     home = level
+                if not cur:
+                    cur_level = level         # the level this part plays at
+                cur.append(((pc + level) % 12, minor))
                 if level == home:
-                    chords.append(((pc + level) % 12, minor))
-                    cur.append(chords[-1])
+                    chords.append(cur[-1])
                 else:
                     modulates = True
-                # chords in modulated parts are skipped
+                # chords in modulated parts stay out of the detection pool, but
+                # the part still gets recorded so --parts can show it
             continue
         if (m.group(3) or m.group(4)) in part_types:
-            cur, start = [], m.end()
+            cur, start, cur_level = [], m.end(), song_level
             in_part, level = True, song_level      # the part opens a TeX group
         elif (m.group(5) or m.group(6)) in part_types:
             if cur:
                 body = text[start:m.start()] if start is not None else ""
                 parts.append((m.group(5) or m.group(6), tuple(cur),
-                              "..." in body or "…" in body))
+                              "..." in body or "…" in body, cur_level))
             cur, start = [], None
             in_part, level = False, song_level     # ...and closing it reverts
     return {
@@ -391,27 +395,33 @@ def classify(stated_all, detected):
         return "propose"
     if detected in stated_all:
         return "match"
-    home = stated_all[0]
-    if detected == relative(home):
+    # The near-misses are tested against every named key, not just the home one:
+    # in a song that modulates, the detector may well land on the relative of the
+    # section it liked best rather than of the key the song opens in.
+    if any(detected == relative(k) for k in stated_all):
         return "relative"
-    if home[0] == detected[0]:
+    if any(k[0] == detected[0] for k in stated_all):
         return "parallel"          # same root, major/minor flip
     return "mismatch"
 
 
-def margin(scored, stated_all):
-    """How far the winning key beats what it is being compared against: the best
+def margin(scored, stated_all, detected):
+    """How far the detected key beats what it is being compared against: the best
     of the stated keys, or the runner-up when nothing is stated. It is the score
     gap, not a probability -- 0 means the detector had no real preference (a coin
     flip, so the disagreement means nothing), and it grows with both the strength
-    of the evidence and the length of the song."""
+    of the evidence and the length of the song. Never negative: when the detected
+    key came from the parts rather than the pooled ranking it can score below the
+    stated one, and that is not a disagreement worth ranking."""
     if not scored:
         return None
-    best_score = scored[0][0]
     if not stated_all:
-        return best_score - scored[1][0] if len(scored) > 1 else 0.0
+        return scored[0][0] - scored[1][0] if len(scored) > 1 else 0.0
+    ours = [score for score, spec in scored if spec == detected]
     theirs = [score for score, spec in scored if spec in stated_all]
-    return best_score - max(theirs) if theirs else None
+    if not ours or not theirs:
+        return None
+    return max(0.0, ours[0] - max(theirs))
 
 
 def analyze(path):
@@ -420,13 +430,151 @@ def analyze(path):
     shift = lambda seq: [((pc + sounds) % 12, mn) for pc, mn in seq]
     sounding = shift(d["chords"])
     d["sounding"] = sounding
-    parts = [(kind, tuple(shift(c)), elided) for kind, c, elided in d["parts"]]
-    d["ending"] = ending_chord(parts, sounding[-1]) if sounding else None
+    # Only home-level parts can supply the ending: the key={} field leads with the
+    # home key, so a part transposed away from it must not decide the cadence.
+    home_parts = [(kind, tuple(shift(c)), elided)
+                  for kind, c, elided, lvl in d["parts"] if lvl == d["transpose"]]
+    d["ending"] = ending_chord(home_parts, sounding[-1]) if sounding else None
     d["scored"] = score_keys(sounding, d["ending"]) if sounding else []
     detected = d["scored"][0][1] if d["scored"] else None
-    d["margin"] = margin(d["scored"], d["stated_all"])
+    # The pooled chords are the wrong evidence for a song that plays in more than
+    # one key; when the parts say so, they decide instead.
+    d["modulation"] = None
+    if detected is not None:
+        spec, why = modulation_key(d)
+        if spec is not None and spec != detected:   # only when it changes the answer
+            d["modulation"] = why
+            detected = spec
+    d["margin"] = margin(d["scored"], d["stated_all"], detected)
     cls = classify(d["stated_all"], detected)
     return d, detected, cls
+
+
+def best_shift(a, b):
+    """(semitones, agreement) for the transposition of `a` that best lines up with
+    `b`, comparing position by position over the shorter of the two."""
+    n = min(len(a), len(b))
+    if n < 4:
+        return 0, 0.0
+    best = (0, 0.0)
+    for k in range(12):
+        hits = sum(1 for i in range(n) if ((a[i][0] + k) % 12, a[i][1]) == b[i])
+        if hits / n > best[1]:
+            best = (k, hits / n)
+    return best
+
+
+# How much of two parts must line up under one shift to call it the same
+# progression moved. Chosen by measuring the corpus: at this level the test fires
+# only on songs that really do replay a section at another pitch.
+RATCHET_MATCH = 0.8
+
+
+def modulation_key(d):
+    """The home key of a song whose parts are not all in the same key, or None.
+
+    Two signals, both meaning "the per-part evidence beats the pooled chords":
+
+    A song that modulates by writing its chords out at rising pitches -- rather
+    than with \\transpose -- pools into a chord set that is a mixture of keys and
+    represents none of them (Ruze z Texasu pools to A#m, a key no part of it is
+    in). The giveaway is structural: two parts of the same type are the same
+    progression at a different pitch. The key to name is then the opening one.
+
+    Separately, if every part on its own agrees on a key and only the pooled set
+    disagrees, the parts win -- that is a modal song whose pooled chords fit a
+    neighbouring key better (Ho Ho Watanay: eight parts all D, pooled says G).
+
+    Returns (spec, reason) or (None, None). Note "their detected keys differ" is
+    NOT a usable signal: verses commonly detect differently just from being short
+    and ending on different chords, and acting on that loses far more than it
+    gains (measured: 4 songs fixed, 14 broken)."""
+    ps = part_keys(d, with_chords=True)
+    if len(ps) < 2:
+        return None, None
+    by = {}
+    for kind, spec, snd in ps:
+        by.setdefault(kind, []).append(snd)
+    for kind, seqs in by.items():
+        for i in range(len(seqs)):
+            for j in range(i + 1, len(seqs)):
+                k, frac = best_shift(seqs[i], seqs[j])
+                if k != 0 and frac >= RATCHET_MATCH:
+                    first = ps[0][2]
+                    return (score_keys(first, first[-1])[0][1],
+                            f"{kind} replayed {k:+d} semitones ({frac:.0%} of chords line up)"
+                            " -> the chords span several keys; naming the opening one")
+    specs = {spec for _, spec, _ in ps}
+    if len(specs) == 1:
+        return specs.pop(), f"all {len(ps)} parts agree on this key on their own"
+    return None, None
+
+
+def part_keys(d, with_chords=False):
+    """Best key for each song part on its own, as [(kind, spec), ...] -- or
+    [(kind, spec, chords)] with with_chords."""
+    sounds = d["capo"] + d["tuning"]
+    out = []
+    for kind, chords, elided, lvl in d["parts"]:
+        snd = [((pc + lvl - d["transpose"] + sounds) % 12, mn) for pc, mn in chords]
+        if snd:
+            spec = score_keys(snd, snd[-1])[0][1]
+            out.append((kind, spec, snd) if with_chords else (kind, spec))
+    return out
+
+
+def shifts_note(d):
+    """The chain that turns fingered shapes into sounding pitch, as text."""
+    bits = []
+    if d["transpose"]:
+        bits.append(f"transpose {d['transpose']:+d}")
+    if d["capo"]:
+        bits.append(f"capo +{d['capo']}")
+    if d["tuning"]:
+        bits.append(f"tuning {d['tuning']:+d}")
+    return " + ".join(bits) if bits else "none"
+
+
+def parts_report(path, repo):
+    """Detect a key for each song part on its own. Two sections that disagree is
+    what a modulation looks like from the chords -- and the chord that is foreign
+    to the other section's key is what makes the split decidable."""
+    d, detected, cls = analyze(path)
+    sounds = d["capo"] + d["tuning"]
+    print(os.path.relpath(path, repo))
+    print(f"  stated key : {d['stated_raw'] or '-'}  ({key_names(d['stated_all'])})")
+    print(f"  shift      : {shifts_note(d)}  (fingered chords -> sounding pitch)")
+    print(f"  whole song : {key_name(detected)}  [{cls}]")
+    if not d["parts"]:
+        print("  no song parts with chords found\n")
+        return
+    print(f"  {'#':>2}  {'part':<20} {'n':>3}  {'chords (sounding)':<44}  best keys for that part")
+    for i, (kind, chords, elided, lvl) in enumerate(d["parts"]):
+        snd = [((pc + lvl - d["transpose"] + sounds) % 12, mn) for pc, mn in chords]
+        label = kind
+        if lvl != d["transpose"]:
+            label += f" {lvl - d['transpose']:+d}"
+        if elided:
+            label += " (reprise)"
+        seq = " ".join(key_name(c) for c in snd)
+        if len(seq) > 44:
+            seq = seq[:43] + "…"
+        top = "   ".join(f"{key_name(s)} {sc:.0f}" for sc, s in score_keys(snd, snd[-1])[:3])
+        print(f"  {i:>2}  {label:<20} {len(snd):>3}  {seq:<44}  {top}")
+    # Pooling each part type is what separates a verse key from a chorus key when
+    # any single part is too short to score reliably.
+    kinds = sorted({k for k, _, _, _ in d["parts"]})
+    if len(kinds) > 1 or len(d["parts"]) > len(kinds):
+        print("  pooled by part type:")
+        for kind in kinds:
+            pool = [((pc + lvl - d["transpose"] + sounds) % 12, mn)
+                    for k, cs, _, lvl in d["parts"] if k == kind for pc, mn in cs]
+            if not pool:
+                continue
+            hist = "  ".join(f"{key_name(c)}×{n}" for c, n in Counter(pool).most_common(5))
+            top = "   ".join(f"{key_name(s)} {sc:.1f}" for sc, s in score_keys(pool, pool[-1])[:3])
+            print(f"    {kind:<14} ({len(pool):>3})  {hist:<40}  -> {top}")
+    print()
 
 
 def explain(path, repo):
@@ -447,6 +595,8 @@ def explain(path, repo):
     print(f"  shift      : {' + '.join(shift) if shift else 'none'}  (fingered chords -> sounding pitch)")
     if d["modulates"]:
         print("  modulates  : mid-song \\transpose found -> detecting the HOME key only")
+    if d["modulation"]:
+        print(f"  parts      : {d['modulation']}")
     sounding = d["sounding"]
     if not sounding:
         print("  no chords found -> cannot detect a key\n")
@@ -480,6 +630,7 @@ def main():
     ap.add_argument("--missing", action="store_true", help="only songs without a key")
     ap.add_argument("--all", action="store_true", help="show every song")
     ap.add_argument("--explain", action="store_true", help="show the detector's reasoning")
+    ap.add_argument("--parts", action="store_true", help="detect a key per song part")
     args = ap.parse_args()
 
     repo = Path(__file__).resolve().parent.parent
@@ -497,6 +648,11 @@ def main():
     if args.explain:
         for f in files:
             explain(f, repo)
+        return 0
+
+    if args.parts:
+        for f in files:
+            parts_report(f, repo)
         return 0
 
     rows = []
@@ -526,6 +682,9 @@ def main():
             if cls == "propose":
                 print(f"{rel}\n  propose key={{{key_name(detected)}}}  (margin {d['margin']:.1f} over"
                       f" {key_name(d['scored'][1][1])}, capo {d['capo']}, {len(d['chords'])} chords)")
+                if d["modulation"]:
+                    seq = " ".join(f"{k}:{key_name(s)}" for k, s in part_keys(d))
+                    print(f"    {d['modulation']}\n    parts: {seq}")
             continue
         if not args.all and cls in ("match", "no-chords"):
             continue
@@ -538,6 +697,8 @@ def main():
             shift += f"  transpose={d['transpose']:+d}"
         if d["modulates"]:
             shift += "  (modulates)"
+        if d["modulation"]:
+            shift += "  (key from parts)"
         gap = "" if d["margin"] is None else f"  margin={d['margin']:.1f}"
         print(f"{rel}")
         print(f"  stated={{{d['stated_raw'] or '-'}}}={key_names(d['stated_all'])}  detected={key_name(detected)}"

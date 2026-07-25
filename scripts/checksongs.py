@@ -27,8 +27,40 @@ Exit status: 0 = clean, 1 = errors found (or warnings with --strict).
 import argparse
 import csv
 import os
+import re
 import sys
 from pathlib import Path
+
+# --- Text that will not reach the PDF as intended ---------------------------
+# The books set text in Open Sans, which has no arrows (U+2190-21FF) and no
+# musical accidentals (U+266D-266F). LuaLaTeX does not fail on those: it logs
+# "Missing character" and drops them, so they vanish from the PDF without the
+# build ever going red. Verified by rendering each form and reading the glyph
+# back out of the PDF -- \rightarrow and $\rightarrow$ both draw an arrow (they
+# resolve through the math font), while \textrightarrow asks the text font and
+# so drops exactly like the bare character.
+UNRENDERABLE = {
+    "♭": r"\flt",
+    "♮": r"\natural",
+    "♯": r"\shrp",
+}
+ARROWS = range(0x2190, 0x2200)
+# House style for a song that modulates: no spaces around the arrow, as in
+# key={Cm\rightarrow C}. The space after the macro is TeX's control-word
+# delimiter and is swallowed, so it prints tight on both sides.
+ARROW_HINT = r"\rightarrow, as in key={Cm\rightarrow C}"
+BROKEN_MACROS = {r"\textrightarrow": ARROW_HINT}
+
+# songs.sty draws chord accidentals with its own \shrp / \flt (songs.sty:2632).
+# The math-mode \sharp / \flat render fine but draw a different glyph, so mixing
+# them makes the prelude's accidentals disagree with the printed chords.
+PREFER_SONGS_ACCIDENTAL = {r"\flat": r"\flt", r"\sharp": r"\shrp"}
+
+# `Bb`/`Eb` spelling typesets as the literal letters instead of a flat sign. It
+# is legible but inconsistent with the rest of the book, and checkkeys.py reads
+# the `b` as part of the chord quality rather than as an accidental.
+ASCII_FLAT_KEY = re.compile(r"(?<![A-Za-z])([A-H])b")
+ASCII_FLAT_CHORD = re.compile(r"\\\[([A-H])b")
 
 # --- What counts as a song key ---------------------------------------------
 # Custom keys defined by this repo (zubuvzpevnik/feature/metadata.cfg and
@@ -194,7 +226,7 @@ def parse_song(path):
     """
     text = strip_comments(path.read_text(encoding="utf-8", errors="replace"))
     info = {"title": None, "keys": {}, "n_begin": text.count("\\beginsong"),
-            "n_end": text.count("\\endsong"), "error": None}
+            "n_end": text.count("\\endsong"), "error": None, "text": text}
 
     pos = text.find("\\beginsong")
     if pos == -1:
@@ -225,6 +257,61 @@ def parse_song(path):
             return info
         info["keys"] = parse_prelude(text[m + 1:bend])
     return info
+
+
+def check_rendering(info):
+    """Flag text that will not reach the PDF as intended.
+
+    Each distinct offender is reported once, with the first line it appears on
+    and how many times, so a song that uses a bad character throughout gives one
+    line of output rather than dozens."""
+    issues = []
+    text = info.get("text") or ""
+
+    bad = {}                      # char -> [first line, count, hint]
+    for lineno, line in enumerate(text.splitlines(), 1):
+        for ch in line:
+            hint = UNRENDERABLE.get(ch)
+            if hint is None and ord(ch) in ARROWS:
+                hint = ARROW_HINT
+            if hint is None:
+                continue
+            if ch in bad:
+                bad[ch][1] += 1
+            else:
+                bad[ch] = [lineno, 1, hint]
+    for ch, (lineno, count, hint) in sorted(bad.items()):
+        times = "" if count == 1 else f", {count}x"
+        issues.append((Severity.ERROR,
+                       f"'{ch}' (U+{ord(ch):04X}) has no glyph in the songbook font "
+                       f"and is dropped silently - use {hint}  [line {lineno}{times}]"))
+
+    for macro, hint in BROKEN_MACROS.items():
+        n = text.count(macro)
+        if n:
+            issues.append((Severity.ERROR,
+                           f"{macro} resolves through the text font, which has no arrow, "
+                           f"so it is dropped silently - use {hint}  [{n}x]"))
+
+    for macro, better in PREFER_SONGS_ACCIDENTAL.items():
+        # \flat must not also match \flattening etc., and \sharp not \sharps
+        n = len(re.findall(re.escape(macro) + r"(?![a-zA-Z])", text))
+        if n:
+            issues.append((Severity.WARN,
+                           f"{macro} draws a different glyph than the chords do - "
+                           f"use songs' {better}  [{n}x]"))
+
+    key = info["keys"].get("key", "")
+    if ASCII_FLAT_KEY.search(key):
+        issues.append((Severity.WARN,
+                       f"key={{{key}}} spells a flat as 'b' - use \\flat so it prints as a flat sign"))
+    roots = sorted(set(ASCII_FLAT_CHORD.findall(text)))
+    if roots:
+        spelled = ", ".join(f"\\[{r}b...]" for r in roots)
+        issues.append((Severity.WARN,
+                       f"chord spells a flat as 'b' ({spelled}) - use & so songs.sty "
+                       "prints a flat sign"))
+    return issues
 
 
 def song_kind(path):
@@ -262,6 +349,7 @@ def check_song(path, info):
     if lang and lang not in KNOWN_LANGS:
         issues.append((Severity.WARN, f"unusual language '{lang}' (typo? add to KNOWN_LANGS if intended)"))
 
+    issues.extend(check_rendering(info))
     return issues
 
 
