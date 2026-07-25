@@ -1,12 +1,20 @@
 #!/usr/bin/env python3
 """Sanity-check song keys against the actual chords, and propose missing ones.
 
-The `key={}` field names the song's *home* key: the chord shapes you finger,
-shifted up by the \\capo amount and by any *global* \\transpose. This script
-extracts every \\[chord], applies \\transpose the way songs.sty does (cumulative,
-reset per \\beginsong), then the capo, plus the song's note-naming convention
-(Czech/Slovak use H=B-natural, B=B-flat), then infers the most likely key from
-the chord progression and compares it to what's written.
+The `key={}` field names the key the song actually *sounds* in: the chord shapes
+you finger, shifted by any *global* \\transpose, by the \\capo amount, and by the
+\\tun{} tuning. This script extracts every \\[chord], applies \\transpose the way
+songs.sty does (cumulative, reset per \\beginsong), then the capo and tuning, plus
+the song's note-naming convention (Czech/Slovak use H=B-natural, B=B-flat), then
+infers the most likely key from the chord progression and compares it to what is
+written.
+
+Tuning: a uniformly detuned guitar shifts every chord you finger. tun={E\\flat
+A\\flat D\\flat G\\flat B\\flat E\\flat} (or "Half-step down") lowers everything a
+semitone, so fingered Am sounds G#m. Only a *uniform* shift counts -- drop
+tunings like tun={D A D G B E} change one string, and the shapes still sound at
+their written pitch, so they shift nothing. String names are read as English
+(B=B-natural) regardless of lang, which is how the corpus writes them.
 
 Modulations: a \\transpose *before the first chord* is a global shift and applies
 to the whole song; a \\transpose *after* chords have started is a mid-song key
@@ -28,6 +36,22 @@ field reads "<song key> (<whistle> whistle)" -- the parenthetical names the
 whistle the tune is *playable on*, not the key. (Pass such a file explicitly to
 analyze it anyway; the parenthetical is then stripped before comparison.)
 
+Songs in two keys: a song whose parts sit in different keys names them all,
+home key first -- key={Cm → C} for a minor verse opening into a major refrain.
+Detecting any of the listed keys counts as agreement; the finer verdicts
+(relative / parallel) compare against the home key. → / -> / , / ; all separate.
+This is *not* what \\transpose marks: \\transpose reprints the chords at a new
+pitch, while a modulation like this leaves the printed chords alone and shifts
+where the music comes to rest.
+
+Certainty: reports are sorted by "margin" -- how far the detected key outscores
+the best of the stated ones (for --missing, how far the proposal outscores the
+runner-up).
+It is a score gap, not a probability. A large margin means the chords barely
+support what is written; a margin of 0 means the two keys tied and the sort broke
+it arbitrarily, so the disagreement says nothing. The gap also grows with song
+length, so compare margins between songs of similar size.
+
 It is a heuristic helper, not an authority: keys are genuinely ambiguous
 (relative major/minor, modal songs, songs that modulate or end away from home),
 so treat disagreements as "worth a look," not "wrong." It never edits files.
@@ -43,6 +67,7 @@ Usage:
 import argparse
 import os
 import re
+import signal
 import sys
 from collections import Counter
 from pathlib import Path
@@ -54,9 +79,19 @@ NOTE_EN = {"C": 0, "D": 2, "E": 4, "F": 5, "G": 7, "A": 9, "B": 11, "H": 11}
 NOTE_DE = {"C": 0, "D": 2, "E": 4, "F": 5, "G": 7, "A": 9, "B": 10, "H": 11}
 
 CAPO_RE = re.compile(r"\\capo\{(\d+)\}")
+TUN_RE = re.compile(r"tun=\{([^}]*)\}")
+# A key={} field may name several keys when the song modulates: "Cm -> C".
+KEY_SPLIT_RE = re.compile(r"\s*(?:→|->|/|,|;)\s*")
+# Standard guitar tuning, low to high, as pitch classes.
+STANDARD_TUNING = [4, 9, 2, 7, 11, 4]          # E A D G B E
+# Tunings spelled out in words rather than as string names.
+NAMED_TUNINGS = {"standard": 0, "half-step down": -1, "half step down": -1,
+                 "whole-step down": -2, "whole step down": -2}
 # Song part types, as \beginverse...\endverse or \begin{verse}...\end{verse}.
+# Songs may add their own with \newSongPartType; load() picks those up too.
 PART_TYPES = {"verse", "chorus", "prechorus", "recprechorus", "bridge", "bridgeb",
               "intro", "outro", "instrumental"}
+NEW_PART_RE = re.compile(r"\\newSongPartType\{([a-zA-Z]+)\}")
 # A single ordered scan: \transpose{n}, \[chord], or a song part boundary.
 # Scanning them in document order lets us apply the cumulative \transpose to only
 # the chords that follow it, the way songs.sty does, and lets us group chords by
@@ -116,16 +151,54 @@ def parse_chord(tok, german):
     return (pc, is_minor(rest))
 
 
+def parse_tuning(val):
+    """Semitone shift a tuning applies to every chord shape, or 0.
+
+    A uniformly detuned guitar transposes everything you finger; a drop tuning
+    retunes one string and leaves the shapes sounding as written. String names
+    are read as English (B=B-natural), which is how the corpus spells them even
+    in Czech songs."""
+    if val is None:
+        return 0
+    name = " ".join(val.replace("\\", " ").split()).lower()
+    if name in NAMED_TUNINGS:
+        return NAMED_TUNINGS[name]
+    notes = []
+    for tok in val.split():
+        pc, rest = parse_note(tok, german=False)
+        if pc is None or rest.strip():
+            return 0                    # not a plain list of string names
+        notes.append(pc)
+    if len(notes) != len(STANDARD_TUNING):
+        return 0
+    shifts = {(n - s + 6) % 12 - 6 for n, s in zip(notes, STANDARD_TUNING)}
+    return shifts.pop() if len(shifts) == 1 else 0   # uniform shift only
+
+
 def parse_key_field(val, german):
-    """Parse a key={} value to (tonic_pc, is_minor) or None. Ignores a
-    trailing '(... whistle)' annotation."""
-    val = re.sub(r"\(.*?\)", "", val).strip()
+    """Parse one key name to (tonic_pc, is_minor) or None."""
+    val = val.strip()
     if not val:
         return None
     pc, rest = parse_note(val, german)
     if pc is None:
         return None
     return (pc, is_minor(rest))
+
+
+def parse_key_fields(val, german):
+    """Parse a key={} value to the list of keys it names, in order. A song that
+    modulates lists them all ("Cm -> C"); the first is the home key. Ignores a
+    trailing '(... whistle)' annotation."""
+    val = re.sub(r"\(.*?\)", "", val)
+    val = re.sub(r"\\rightarrow|\\to\b", "→", val).replace("$", " ")
+    specs = [parse_key_field(part, german) for part in KEY_SPLIT_RE.split(val)]
+    return [s for s in specs if s]
+
+
+def key_names(specs):
+    """Render every key a field names, e.g. "Cm→C" for a modulating song."""
+    return "→".join(key_name(s) for s in specs) if specs else "?"
 
 
 def key_name(spec):
@@ -141,18 +214,24 @@ def load(path):
     german = bool(re.search(r"lang=\{(czech|slovak)\}", text))
     capo_m = CAPO_RE.search(text)
     capo = int(capo_m.group(1)) if capo_m else 0
+    tun_m = TUN_RE.search(text)
+    tuning = parse_tuning(tun_m.group(1) if tun_m else None)
     key_m = re.search(r"key=\{([^}]*)\}", text)
     stated_raw = key_m.group(1) if key_m else None
+    stated_all = parse_key_fields(stated_raw, german) if stated_raw else []
+    # Songs may define extra part types; without them the parts below come out
+    # empty and the ending chord falls back to the last chord in the file.
+    part_types = PART_TYPES | set(NEW_PART_RE.findall(text))
     # Walk chords and \transpose in document order. \transpose is cumulative and
     # shifts every chord that follows it (songs.sty resets it per \beginsong). A
     # \transpose before the first chord is a global shift that defines the home
     # transposition; a \transpose after chords have started is a mid-song
     # modulation. The key={} field names the home key, so we keep only the chords
     # at the initial level and skip the modulated sections (else a song that
-    # climbs a semitone each verse would look keyless). \capo is added later, in
-    # analyze(), to reach the sounding pitch: the projects do not enable songs'
-    # transposecapos option, so the capo is a separate axis and the \[chord]
-    # shapes are what you actually finger.
+    # climbs a semitone each verse would look keyless). \capo and the tuning are
+    # added later, in analyze(), to reach the sounding pitch: the projects do not
+    # enable songs' transposecapos option, so both are separate axes and the
+    # \[chord] shapes are what you actually finger.
     transpose = 0
     initial = None
     modulates = False
@@ -176,19 +255,20 @@ def load(path):
                     cur.append(chords[-1])
                 # chords at other levels are transient modulations -> skip
             continue
-        if (m.group(3) or m.group(4)) in PART_TYPES:
+        if (m.group(3) or m.group(4)) in part_types:
             cur, start = [], m.end()
-        elif (m.group(5) or m.group(6)) in PART_TYPES:
+        elif (m.group(5) or m.group(6)) in part_types:
             if cur:
                 body = text[start:m.start()] if start is not None else ""
                 parts.append((m.group(5) or m.group(6), tuple(cur),
                               "..." in body or "…" in body))
             cur, start = [], None
     return {
-        "german": german, "capo": capo,
+        "german": german, "capo": capo, "tuning": tuning,
         "transpose": initial if initial is not None else 0,
         "modulates": modulates, "stated_raw": stated_raw,
-        "stated": parse_key_field(stated_raw, german) if stated_raw else None,
+        "stated_all": stated_all,
+        "stated": stated_all[0] if stated_all else None,   # the home key
         "chords": chords, "parts": parts,
     }
 
@@ -283,29 +363,51 @@ def relative(spec):
     return ((pc + 3) % 12, False) if minor else ((pc - 3) % 12, True)
 
 
-def classify(stated, detected):
+def classify(stated_all, detected):
+    """stated_all: every key the field names (a modulating song lists more than
+    one). Detecting any of them is agreement; the finer verdicts compare against
+    the home key."""
     if detected is None:
         return "no-chords"
-    if stated is None:
+    if not stated_all:
         return "propose"
-    if stated == detected:
+    if detected in stated_all:
         return "match"
-    if detected == relative(stated):
+    home = stated_all[0]
+    if detected == relative(home):
         return "relative"
-    if stated[0] == detected[0]:
+    if home[0] == detected[0]:
         return "parallel"          # same root, major/minor flip
     return "mismatch"
 
 
+def margin(scored, stated_all):
+    """How far the winning key beats what it is being compared against: the best
+    of the stated keys, or the runner-up when nothing is stated. It is the score
+    gap, not a probability -- 0 means the detector had no real preference (a coin
+    flip, so the disagreement means nothing), and it grows with both the strength
+    of the evidence and the length of the song."""
+    if not scored:
+        return None
+    best_score = scored[0][0]
+    if not stated_all:
+        return best_score - scored[1][0] if len(scored) > 1 else 0.0
+    theirs = [score for score, spec in scored if spec in stated_all]
+    return best_score - max(theirs) if theirs else None
+
+
 def analyze(path):
     d = load(path)
-    shift = lambda seq: [((pc + d["capo"]) % 12, mn) for pc, mn in seq]
+    sounds = d["capo"] + d["tuning"]        # fingered shapes -> sounding pitch
+    shift = lambda seq: [((pc + sounds) % 12, mn) for pc, mn in seq]
     sounding = shift(d["chords"])
     d["sounding"] = sounding
     parts = [(kind, tuple(shift(c)), elided) for kind, c, elided in d["parts"]]
     d["ending"] = ending_chord(parts, sounding[-1]) if sounding else None
-    detected = detect_key(sounding, d["ending"])
-    cls = classify(d["stated"], detected)
+    d["scored"] = score_keys(sounding, d["ending"]) if sounding else []
+    detected = d["scored"][0][1] if d["scored"] else None
+    d["margin"] = margin(d["scored"], d["stated_all"])
+    cls = classify(d["stated_all"], detected)
     return d, detected, cls
 
 
@@ -319,8 +421,10 @@ def explain(path, repo):
         shift.append(f"transpose {d['transpose']:+d}")
     if d["capo"]:
         shift.append(f"capo +{d['capo']}")
+    if d["tuning"]:
+        shift.append(f"tuning {d['tuning']:+d}")
     naming = "Czech/Slovak (H=B♮, B=B♭)" if d["german"] else "English (B=B♮)"
-    print(f"  stated key : {d['stated_raw'] or '-'}  ({key_name(d['stated'])})")
+    print(f"  stated key : {d['stated_raw'] or '-'}  ({key_names(d['stated_all'])})")
     print(f"  note naming: {naming}")
     print(f"  shift      : {' + '.join(shift) if shift else 'none'}  (fingered chords -> sounding pitch)")
     if d["modulates"]:
@@ -344,10 +448,14 @@ def explain(path, repo):
         kind = "minor" if spec[1] else "major"
         relkind = "major" if spec[1] else "minor"
         print(f"      {key_name(spec):<4} {kind:<5} score {score:6.1f}   relative {relkind}: {rel}{marker}")
-    print(f"  verdict    : detected {key_name(detected)} vs stated {key_name(d['stated'])}  [{cls}]\n")
+    gap = "" if d["margin"] is None else f"  margin {d['margin']:.1f}"
+    print(f"  verdict    : detected {key_name(detected)} vs stated {key_names(d['stated_all'])}"
+          f"{gap}  [{cls}]\n")
 
 
 def main():
+    # Die quietly when piped into head/less instead of dumping a traceback.
+    signal.signal(signal.SIGPIPE, signal.SIG_DFL)
     ap = argparse.ArgumentParser()
     ap.add_argument("paths", nargs="*")
     ap.add_argument("--validate", action="store_true", help="agreement stats only")
@@ -389,24 +497,33 @@ def main():
             print(f"\n  match+relative = {agree}/{len(graded)} = {100*agree/len(graded):.0f}% of keyed songs")
         return 0
 
+    # Strongest disagreements first: the ones where the chords least support the
+    # stated key are the ones worth opening. A margin of 0 is a tie the sort
+    # broke arbitrarily, so those land at the bottom, next to the matches.
+    rows.sort(key=lambda r: (-(r[1]["margin"] or 0), os.path.relpath(r[0], repo)))
+
     for f, d, detected, cls in rows:
         rel = os.path.relpath(f, repo)
         if args.missing:
             if cls == "propose":
-                print(f"{rel}\n  propose key={{{key_name(detected)}}}  (capo {d['capo']}, {len(d['chords'])} chords)")
+                print(f"{rel}\n  propose key={{{key_name(detected)}}}  (margin {d['margin']:.1f} over"
+                      f" {key_name(d['scored'][1][1])}, capo {d['capo']}, {len(d['chords'])} chords)")
             continue
         if not args.all and cls in ("match", "no-chords"):
             continue
         tag = {"relative": "rel. maj/min", "parallel": "MAJ/MIN FLIP",
                "mismatch": "MISMATCH", "propose": "MISSING", "match": "ok"}.get(cls, cls)
         shift = f"  capo={d['capo']}"
+        if d["tuning"]:
+            shift += f"  tuning={d['tuning']:+d}"
         if d["transpose"]:
             shift += f"  transpose={d['transpose']:+d}"
         if d["modulates"]:
             shift += "  (modulates)"
+        gap = "" if d["margin"] is None else f"  margin={d['margin']:.1f}"
         print(f"{rel}")
-        print(f"  stated={{{d['stated_raw'] or '-'}}}={key_name(d['stated'])}  detected={key_name(detected)}"
-              f"{shift}  [{tag}]")
+        print(f"  stated={{{d['stated_raw'] or '-'}}}={key_names(d['stated_all'])}  detected={key_name(detected)}"
+              f"{gap}{shift}  [{tag}]")
     return 0
 
 
