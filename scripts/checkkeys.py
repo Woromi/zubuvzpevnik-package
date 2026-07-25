@@ -222,50 +222,68 @@ def load(path):
     # Songs may define extra part types; without them the parts below come out
     # empty and the ending chord falls back to the last chord in the file.
     part_types = PART_TYPES | set(NEW_PART_RE.findall(text))
-    # Walk chords and \transpose in document order. \transpose is cumulative and
-    # shifts every chord that follows it (songs.sty resets it per \beginsong). A
-    # \transpose before the first chord is a global shift that defines the home
-    # transposition; a \transpose after chords have started is a mid-song
-    # modulation. The key={} field names the home key, so we keep only the chords
-    # at the initial level and skip the modulated sections (else a song that
-    # climbs a semitone each verse would look keyless). \capo and the tuning are
-    # added later, in analyze(), to reach the sounding pitch: the projects do not
-    # enable songs' transposecapos option, so both are separate axes and the
+    # Walk chords and \transpose in document order.
+    #
+    # \transpose is BLOCK-SCOPED, not cumulative over the song: songs.sty advances
+    # \SB@transposefactor without \global (songs.sty:1806) and every song part is a
+    # TeX group (\SB@beginverse opens \vbox\bgroup\begingroup, \SB@endverse closes
+    # it), so a \transpose inside a part reverts at \endverse. Several \transpose in
+    # one part do add up. One outside any part -- typically right after \beginsong --
+    # stays in force for the rest of the song, which is how a song gets printed at a
+    # pitch other than the one it was transcribed in.
+    #
+    # So `song_level` is the shift in force between parts, and a part transposed away
+    # from it is a mid-song modulation. The key={} field leads with the home key, so
+    # we keep only the chords at the home level and skip the modulated parts (else a
+    # song that climbs a semitone each verse would look keyless). \capo and the
+    # tuning are added later, in analyze(), to reach the sounding pitch: the projects
+    # do not enable songs' transposecapos option, so both are separate axes and the
     # \[chord] shapes are what you actually finger.
-    transpose = 0
-    initial = None
+    song_level = 0            # shift in force outside any part
+    level = 0                 # shift in force right now
+    in_part = False
+    home = None               # song_level when the first chord turned up
     modulates = False
     chords = []
     parts = []                # (part type, chords in it, text elided with "...")
     cur, start = [], None
     for m in TOKEN_RE.finditer(text):
         if m.group(1) is not None:
-            transpose += int(m.group(1))
-            if initial is not None:
-                modulates = True          # a \transpose after chords = modulation
+            level += int(m.group(1))
+            if in_part:
+                if level != song_level:
+                    modulates = True      # this part is played in another key
+            else:
+                song_level = level        # persists until \endsong
+                if home is not None:
+                    modulates = True      # the song re-pitches partway through
             continue
         if m.group(2) is not None:
             c = parse_chord(m.group(2), german)
             if c:
                 pc, minor = c
-                if initial is None:
-                    initial = transpose
-                if transpose == initial:
-                    chords.append(((pc + transpose) % 12, minor))
+                if home is None:
+                    home = level
+                if level == home:
+                    chords.append(((pc + level) % 12, minor))
                     cur.append(chords[-1])
-                # chords at other levels are transient modulations -> skip
+                else:
+                    modulates = True
+                # chords in modulated parts are skipped
             continue
         if (m.group(3) or m.group(4)) in part_types:
             cur, start = [], m.end()
+            in_part, level = True, song_level      # the part opens a TeX group
         elif (m.group(5) or m.group(6)) in part_types:
             if cur:
                 body = text[start:m.start()] if start is not None else ""
                 parts.append((m.group(5) or m.group(6), tuple(cur),
                               "..." in body or "…" in body))
             cur, start = [], None
+            in_part, level = False, song_level     # ...and closing it reverts
     return {
         "german": german, "capo": capo, "tuning": tuning,
-        "transpose": initial if initial is not None else 0,
+        "transpose": home if home is not None else song_level,
         "modulates": modulates, "stated_raw": stated_raw,
         "stated_all": stated_all,
         "stated": stated_all[0] if stated_all else None,   # the home key
