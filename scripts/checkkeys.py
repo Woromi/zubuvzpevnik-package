@@ -16,6 +16,12 @@ such songs are tagged "(modulates)". (\\[chord] replays via ^ in a transposed
 section are invisible to a text scan, so a modulation may sound bigger than the
 chords we can see.)
 
+Truncated reprises: an abbreviated final chorus ("first line...", rest commented
+out) ends mid-phrase, so its last chord is not a cadence. Such a part -- chord
+sequence a strict prefix of a longer part of the same type, and text elided with
+"..." -- is skipped when deciding what chord the song ends on; the last complete
+part supplies the ending instead.
+
 Tinwhistle songs are skipped in directory scans: they are melody tabs with no
 \\[chords] to check, and their key is fixed by the tune's sharps/flats. Their key
 field reads "<song key> (<whistle> whistle)" -- the parenthetical names the
@@ -48,10 +54,19 @@ NOTE_EN = {"C": 0, "D": 2, "E": 4, "F": 5, "G": 7, "A": 9, "B": 11, "H": 11}
 NOTE_DE = {"C": 0, "D": 2, "E": 4, "F": 5, "G": 7, "A": 9, "B": 10, "H": 11}
 
 CAPO_RE = re.compile(r"\\capo\{(\d+)\}")
-# A single ordered scan: either a \transpose{n} (group 1) or a \[chord] (group 2).
-# Scanning both in document order lets us apply the cumulative \transpose to only
-# the chords that follow it, the way songs.sty does.
-TOKEN_RE = re.compile(r"\\transpose\*?\{([+-]?\d+)\}|\\\[([^\]]*)\]")
+# Song part types, as \beginverse...\endverse or \begin{verse}...\end{verse}.
+PART_TYPES = {"verse", "chorus", "prechorus", "recprechorus", "bridge", "bridgeb",
+              "intro", "outro", "instrumental"}
+# A single ordered scan: \transpose{n}, \[chord], or a song part boundary.
+# Scanning them in document order lets us apply the cumulative \transpose to only
+# the chords that follow it, the way songs.sty does, and lets us group chords by
+# the part they sit in (needed to spot truncated reprises).
+TOKEN_RE = re.compile(
+    r"\\transpose\*?\{([+-]?\d+)\}"              # 1: transpose
+    r"|\\\[([^\]]*)\]"                           # 2: chord
+    r"|\\begin(?:\{([a-zA-Z]+)\}|([a-zA-Z]+))"   # 3/4: part opens (env / macro form)
+    r"|\\end(?:\{([a-zA-Z]+)\}|([a-zA-Z]+))"     # 5/6: part closes
+)
 
 
 def parse_note(tok, german):
@@ -142,26 +157,39 @@ def load(path):
     initial = None
     modulates = False
     chords = []
+    parts = []                # (part type, chords in it, text elided with "...")
+    cur, start = [], None
     for m in TOKEN_RE.finditer(text):
         if m.group(1) is not None:
             transpose += int(m.group(1))
             if initial is not None:
                 modulates = True          # a \transpose after chords = modulation
             continue
-        c = parse_chord(m.group(2), german)
-        if c:
-            pc, minor = c
-            if initial is None:
-                initial = transpose
-            if transpose == initial:
-                chords.append(((pc + transpose) % 12, minor))
-            # chords at other levels are transient modulations -> skip
+        if m.group(2) is not None:
+            c = parse_chord(m.group(2), german)
+            if c:
+                pc, minor = c
+                if initial is None:
+                    initial = transpose
+                if transpose == initial:
+                    chords.append(((pc + transpose) % 12, minor))
+                    cur.append(chords[-1])
+                # chords at other levels are transient modulations -> skip
+            continue
+        if (m.group(3) or m.group(4)) in PART_TYPES:
+            cur, start = [], m.end()
+        elif (m.group(5) or m.group(6)) in PART_TYPES:
+            if cur:
+                body = text[start:m.start()] if start is not None else ""
+                parts.append((m.group(5) or m.group(6), tuple(cur),
+                              "..." in body or "…" in body))
+            cur, start = [], None
     return {
         "german": german, "capo": capo,
         "transpose": initial if initial is not None else 0,
         "modulates": modulates, "stated_raw": stated_raw,
         "stated": parse_key_field(stated_raw, german) if stated_raw else None,
-        "chords": chords,
+        "chords": chords, "parts": parts,
     }
 
 
@@ -185,13 +213,36 @@ MAJOR_TRIADS = {(0, False), (2, True), (4, True), (5, False), (7, False), (9, Tr
 MINOR_TRIADS = {(0, True), (3, False), (5, True), (7, True), (8, False), (10, False), (7, False)}
 
 
-def score_keys(sounding):
+def is_truncated_reprise(i, parts):
+    """True if parts[i] is an abbreviated repeat: its chords are a strict prefix
+    of a longer part of the same type, and its text trails off in "...". Such a
+    part stops mid-phrase, so its final chord is not a cadence."""
+    kind, chords, elided = parts[i]
+    if not elided:
+        return False
+    return any(k == kind and len(c) > len(chords) and c[:len(chords)] == chords
+               for j, (k, c, _) in enumerate(parts) if j != i)
+
+
+def ending_chord(parts, fallback):
+    """The chord the song really ends on: the final chord of the last part that
+    is not a truncated reprise. Falls back to the last chord seen."""
+    for i in range(len(parts) - 1, -1, -1):
+        if not is_truncated_reprise(i, parts):
+            return parts[i][1][-1]
+    return fallback
+
+
+def score_keys(sounding, last=None):
     """Score all 24 keys against the chord list. Returns [(score, spec), ...]
-    sorted best-first. spec is (tonic_pc, is_minor). This is the heart of the
-    heuristic; --explain prints the top of this list so the ranking is visible."""
+    sorted best-first. spec is (tonic_pc, is_minor). `last` is the chord the song
+    ends on (default: the last one seen). This is the heart of the heuristic;
+    --explain prints the top of this list so the ranking is visible."""
     freq = Counter(sounding)
     roots = {pc for pc, _ in sounding}
-    first, last = sounding[0], sounding[-1]
+    first = sounding[0]
+    if last is None:
+        last = sounding[-1]
     scored = []
     for tonic in range(12):
         for minor in (True, False):
@@ -218,11 +269,11 @@ def score_keys(sounding):
     return scored
 
 
-def detect_key(sounding):
+def detect_key(sounding, last=None):
     """sounding: list of (pc, is_minor). Returns (tonic_pc, is_minor) or None."""
     if not sounding:
         return None
-    return score_keys(sounding)[0][1]
+    return score_keys(sounding, last)[0][1]
 
 
 def relative(spec):
@@ -248,9 +299,12 @@ def classify(stated, detected):
 
 def analyze(path):
     d = load(path)
-    sounding = [((pc + d["capo"]) % 12, mn) for pc, mn in d["chords"]]
+    shift = lambda seq: [((pc + d["capo"]) % 12, mn) for pc, mn in seq]
+    sounding = shift(d["chords"])
     d["sounding"] = sounding
-    detected = detect_key(sounding)
+    parts = [(kind, tuple(shift(c)), elided) for kind, c, elided in d["parts"]]
+    d["ending"] = ending_chord(parts, sounding[-1]) if sounding else None
+    detected = detect_key(sounding, d["ending"])
     cls = classify(d["stated"], detected)
     return d, detected, cls
 
@@ -277,10 +331,14 @@ def explain(path, repo):
         return
     freq = Counter(sounding)
     hist = "  ".join(f"{key_name(c)}×{n}" for c, n in freq.most_common())
+    ends_on = f"ends on {key_name(d['ending'])}"
+    if d["ending"] != sounding[-1]:
+        ends_on += f"  (last part is a truncated reprise stopping on {key_name(sounding[-1])})"
     print(f"  first chord: {key_name(sounding[0])}    last chord: {key_name(sounding[-1])}")
+    print(f"  cadence    : {ends_on}")
     print(f"  chords     : {hist}")
     print("  best key candidates (higher score = better fit of chords + first/last):")
-    for score, spec in score_keys(sounding)[:4]:
+    for score, spec in score_keys(sounding, d["ending"])[:4]:
         marker = " <- detected" if spec == detected else ""
         rel = key_name(relative(spec))
         kind = "minor" if spec[1] else "major"
