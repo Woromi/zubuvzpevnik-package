@@ -56,14 +56,33 @@ Keys go in the optional `[...]` argument of `\beginsong`. All are optional excep
 |-------|---------|
 | `by`  | Artist / author (drives the author index). *(from `songs`)* |
 | `lang`| Song language — `czech`, `slovak`, `english`, … Selects hyphenation, chord naming, index sorting and `-l`/`-e` filtering. |
-| `key` | Musical key. |
-| `tun` | Instrument tuning. |
+| `key` | Musical key — see below. |
+| `tun` | Instrument tuning. A uniform detuning (`E\flat A\flat D\flat G\flat B\flat E\flat`, or `Half-step down`) transposes every shape you finger, so it counts towards `key`; a drop tuning like `D A D G B E` retunes one string and does not. |
 | `tem` | Tempo. |
 | `ori` | Original song (for covers / translations). |
 | `chr` | Chords used, shown above the song (e.g. `\gtab` diagrams). |
 | `src` | Source URL (typeset as a link). |
 
 `key`/`tun`/`tem`/`ori`/`chr`/`src` are defined in `feature/metadata.cfg`; `lang` in `feature/lokalizace.cfg`. On large paper they are laid out in a box beside the title (see `\makeprelude`); on small paper they are omitted.
+
+### Writing the `key`
+
+**It names the key the song *sounds* in** — the shapes you finger, shifted by any global `\transpose`, by `\capo{n}`, and by a uniform `tun`. A song fingered in `Em` shapes with `\capo{4}` is `key={G\shrp m}`, not `key={Em}`; one fingered in `Am` shapes on a half-step-down guitar is `key={G\shrp m}` too.
+
+**Note names follow the song's `lang`**, exactly as chord names do — so B-natural minor is `key={Hm}` in a Czech song and `key={Bm}` in an English one. Getting this wrong is easy and silent: `key={Bm}` in a Czech song reads as B-flat minor.
+
+**Accidentals** use the `songs` package's own `\flt` and `\shrp` (`key={A\flt m}`, `key={G\shrp m}`). `\flat`/`\sharp` also render but draw a different glyph than the chords do, and a literal `♭`/`♯` has no glyph in the songbook font at all — LuaLaTeX drops it silently. Never spell a flat as a bare `b` (`Bbm`): it typesets as the letters.
+
+**A song in two keys** names them all, home key first:
+
+```latex
+key={A\rightarrow Hm},        % verses in A, chorus in H minor
+key={Cm\rightarrow C},        % minor verse opening into a major refrain
+```
+
+Write the arrow as `\rightarrow` with no space before it — the space after is TeX's control-word delimiter and is swallowed, so it prints tight on both sides. A literal `→` and `\textrightarrow` both resolve to a glyph the songbook font lacks and vanish from the PDF.
+
+This is *not* what `\transpose` marks. `\transpose` reprints the chords at another pitch, for a verse that climbs a semitone; a modulation written out in the chords leaves them alone and just shifts where the music comes to rest. `scripts/checkkeys.py --parts` will tell you which parts sit in which key.
 
 ## Song parts
 
@@ -152,7 +171,7 @@ The most recently defined chorus is the one repeated. Put `\beginchorus` on its 
 
 ## Chords
 
-**Czech vs. English note names.** The note names follow the song's `lang`: Czech and Slovak songs use the German/Czech system (**H** = English B, **B** = English B-flat), everything else uses English names (B, B♭). This is selected automatically by the `lang` key; the underlying switches are `\germanchords` (alias `\czechchords`) / `\englishchords`.
+**Czech vs. English note names.** The note names follow the song's `lang`: Czech and Slovak songs use the German/Czech system (**H** = English B, **B** = English B-flat), everything else uses English names (B, B♭). This is selected automatically by the `lang` key; the underlying switches are `\germanchords` (alias `\czechchords`) / `\englishchords`. The `key={}` field follows the same convention — see *Writing the `key`* above.
 
 **Forcing one printed convention for the whole book.** Put one of these in the preamble to make *every* song print its chords in the same system, regardless of language:
 
