@@ -23,9 +23,13 @@ scripts/checksongs.py songs/chords/Ayreon   # check one folder
 | `--missing FIELD[,…]` | report only songs missing those fields |
 | `--no-orphans` | skip the unreferenced-song check |
 | `--csv` | emit CSV of all metadata instead of a report |
-| `--strict` | exit non-zero on warnings too (for CI) |
+| `--strict` | exit non-zero on warnings and orphans too |
 
 Exit status: 0 clean, 1 errors (or warnings with `--strict`), 2 nothing to scan.
+
+CI gates on the plain run, not `--strict` — see
+[building.md](building.md#continuous-integration) for why. `--strict` is for a
+deliberate cleanup pass, when you want the whole backlog to show up as failure.
 
 ### What it checks
 

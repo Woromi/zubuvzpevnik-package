@@ -143,11 +143,25 @@ formatting.
 
 ## Continuous integration
 
-`.github/workflows/build.yml` rebuilds the songbooks from scratch on every push
-and pull request, so a broken song file or a missing prerequisite is caught
-immediately rather than at the next release. The apt list lives in
-`.github/actions/setup-build-env/action.yml` and mirrors the one above, so CI
-also verifies that the documented list stays sufficient.
+`.github/workflows/build.yml` runs on every push and pull request, with two
+independent jobs.
+
+**`lint`** runs the two song linters. It needs no TeX, so it answers in seconds
+beside the builds. `checksongs.py` is the gate, deliberately **without**
+`--strict`: it fails on errors only — a missing `by`, an unbalanced
+`\beginsong`/`\endsong`, a character LuaLaTeX would silently drop from the PDF
+— and leaves the recommended-metadata warnings as warnings. Several of those
+are unfixable in principle (a tempo nobody knows), and a gate that can never go
+green is a gate you learn to ignore. The warnings and the 7 deliberate orphans
+still print in the log. `checkkeys.py --validate` runs alongside it purely for
+the record, with `|| true`: the detector is a heuristic and is not always
+right, so a drop from the current 97 % should be visible without failing a
+build.
+
+**`build`** rebuilds the songbooks from scratch, so a broken song file or a
+missing prerequisite is caught immediately rather than at the next release. The
+apt list lives in `.github/actions/setup-build-env/action.yml` and mirrors the
+one above, so CI also verifies that the documented list stays sufficient.
 
 Engraved scores are cached: `lyluatex` keys `tmp-ly/` by content, so restoring
 the cache skips re-engraving unchanged LilyPond sources. The cache is never
