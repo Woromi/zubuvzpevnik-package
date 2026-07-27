@@ -22,10 +22,24 @@ If the list ever drifts out of date, `texlive-full` instead of the `texlive-*`
 packages always works.
 
 Index sorting wants a Czech locale (`sudo locale-gen cs_CZ.UTF-8`); without one
-the build warns and falls back to the system default. The camp songbook cover
-additionally needs the SKAUT Bold and TheMix C5 fonts from the
+the build warns and falls back to the system default.
+
+### Cover fonts
+
+The camp songbook cover is set in SKAUT Bold and TheMix C5, from the
 [official scouting visual style](https://krizovatka.skaut.cz/komunikace-a-propagace/skautsky-vizualni-styl/zakladni-prvky-jednotneho-vizualniho-stylu).
-They are licensed for Junák use only and are never committed.
+They are licensed for Junák use only, so they are **never committed and never
+cached** — the only copy is the one you install yourself, and the one a tagged
+camp release downloads into a throwaway CI runner.
+
+They are therefore optional. `taborovyzpevnik.cls` asks for each with
+`\IfFontExistsTF` and falls back to the text font with a `\ClassWarning`, so
+the camp songbook builds for anyone; only the licensed typography is missing.
+The cover title sits in a fixed-height box (`\ZUB@covertitleheight`) so that
+substitution cannot change the page count: *Zpěvník* has a 17 pt descender in
+Open Sans against 1 pt in SKAUT Bold, and those few points were enough to spill
+the front matter onto a third page and break the
+[booklet paging](internals.md#why-the-page-count-must-be-a-multiple-of-4).
 
 ## Building a songbook
 
@@ -167,11 +181,15 @@ Engraved scores are cached: `lyluatex` keys `tmp-ly/` by content, so restoring
 the cache skips re-engraving unchanged LilyPond sources. The cache is never
 pruned, so it grows over time.
 
-The camp matrix entries set `fonts: true`, which makes the setup action download
-the three cover fonts from their official distribution links and verify with
-`fc-list` that what arrived really is a font — a failed Drive download yields an
-HTML page. That download runs on every push for those entries, so a Drive hiccup
-can red CI for unrelated changes.
+The camp entries deliberately do **not** set `fonts: true`, so ordinary pushes
+never touch the font links at all: the camp books build with the fallback cover,
+which still exercises the class, `\padbookletpages` and the booklet imposition.
+A tag is the only thing that fetches them — `release-camp.yml` passes
+`cover-fonts: true`, and the setup action then verifies with `fc-list` that what
+arrived really is a font, since a failed Drive download yields an HTML page. So
+a published release still cannot go out with the wrong cover, while a Drive
+hiccup can no longer red CI for an unrelated change. The trade-off is that a
+broken link stays unnoticed until you tag.
 
 Note that `-shell-escape` means a pull request from a fork executes arbitrary
 code in CI. The blast radius is small — the `pull_request` trigger gives a

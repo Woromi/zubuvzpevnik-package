@@ -257,7 +257,7 @@ The small **A5** camp songbook, based on `book` (two-sided, half-line spacing, m
 - `\makebackcover[note]` — inside back cover with a chord overview (`akordy`) and credits; the optional `note` is printed above the credit line.
 - `\padbookletpages[n]` — pad with blank pages up to a multiple of `n` (default 4) so `scripts/makebooklet.sh` can impose it as a printable booklet.
 
-The generated cover and back cover use the SKAUT Bold and TheMix C5 fonts (Junák visual style; not in the repo).
+The generated cover uses the SKAUT Bold and TheMix C5 fonts (Junák visual style; not in the repo). They are optional: without them the cover falls back to the text font and warns, so the book still builds. See [../docs/building.md](../docs/building.md#cover-fonts).
 
 ## Package / class options
 

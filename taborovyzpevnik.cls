@@ -74,6 +74,20 @@
 % Pin per book with \renewcommand{\campyear}{<year>} so old books rebuild unchanged.
 \newcommand{\campyear}{\the\year}
 
+% The cover faces are Junák-licensed and deliberately not in the repo, so treat
+% them as optional: docs/building.md#cover-fonts
+\newcommand{\ZUB@coverfont}[1]{%
+	\IfFontExistsTF{#1}{\setmainfont{#1}}%
+		{\ClassWarning{taborovyzpevnik}{Cover font '#1' is not installed;
+			setting that line in the text font instead}}%
+}
+
+% Fixed height for the cover title, so a substitute font's descender cannot
+% lengthen the title page and spill the front matter onto a third page --
+% which would break the 2 + 4n + 2 booklet paging.
+\newlength{\ZUB@covertitleheight}
+\setlength{\ZUB@covertitleheight}{66.96pt}
+
 % Pages the front matter took, for \padbookletpages to check (see there).
 \newcounter{ZUB@frontpages}
 
@@ -85,14 +99,15 @@
 		\begin{titlepage}
 			\centering
 			\vspace*{-21pt}
-			{\fontsize{72}{75}\bfseries\setmainfont{SKAUT Bold} Zpěvník\par}
+			\vbox to \ZUB@covertitleheight{%
+				\centering{\fontsize{72}{75}\bfseries\ZUB@coverfont{SKAUT Bold} Zpěvník\par}\vss}
 			\vspace{16pt}
 			\includegraphics[width=350pt]{img/kane}\par
 			\vfill
 			% Camp name centered; year below it, flush right
-			{\large\setmainfont{TheMix C5 Bold}\@title\par}
+			{\large\ZUB@coverfont{TheMix C5 Bold}\@title\par}
 			\vspace{3pt}
-			\makebox[\textwidth][r]{\small\setmainfont{TheMix C5 SemiLight}\campyear}
+			\makebox[\textwidth][r]{\small\ZUB@coverfont{TheMix C5 SemiLight}\campyear}
 		\end{titlepage}
 	}{%
 		\includepdf[pages={1}]{#1}%
