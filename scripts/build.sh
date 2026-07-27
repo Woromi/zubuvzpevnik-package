@@ -45,6 +45,10 @@ pretex=""
 [ -n "$includelangs" ] && pretex="\\makeatletter\\def\\ZUB@includelangs{$includelangs}\\makeatother"
 [ -n "$excludelangs" ] && pretex="\\makeatletter\\def\\ZUB@excludelangs{$excludelangs}\\makeatother"
 
+# 120 keeps each song on its own line: wide enough that TeX never splits a song
+# path mid-word, narrow enough that a second song never fits beside one.
+export max_print_line=120 error_line=254 half_error_line=238
+
 # -shell-escape is needed for lyluatex to call lilypond
 lualatex_cmd=(lualatex -shell-escape -interaction=nonstopmode -halt-on-error)
 [ -n "$outputfile" ] && lualatex_cmd+=("--jobname=$outputfile")

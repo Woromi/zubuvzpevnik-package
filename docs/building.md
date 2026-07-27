@@ -95,6 +95,21 @@ projects/velkyzpevnik/build.sh -l czech,slovak -o velkyzpevnikCz
 Two passes converge because both classes restart page numbering after the front
 matter, so the index's own length never shifts the song page numbers it records.
 
+Each project script resolves the repository root once into `REPO_ROOT` instead
+of hanging `../../` off `SCRIPT_DIR`, so the paths TeX prints for every song it
+opens are 28 characters shorter.
+
+`build.sh` exports `max_print_line=120` before calling LuaLaTeX. TeX starts a
+new line before a file name only when the name would not fit in what is left of
+the current one, so the value decides the shape of the build output: at the
+default 79 nothing ever fits, giving one song per line but splitting every path
+mid-word, while a large value lets several songs share a line. 120 sits between
+the longest song path (94 characters) and the point where a second song starts
+fitting beside one (about 150), so every song gets its own unbroken line. The
+two numbers are linked — shortening the paths again means re-checking this one.
+`error_line`/`half_error_line` are raised alongside it so the error context line
+is shown whole instead of being elided with `...`.
+
 No install step is needed: the package is found through `TEXINPUTS` and locates
 its own LilyPond includes via kpse.
 
