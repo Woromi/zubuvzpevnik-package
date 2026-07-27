@@ -30,12 +30,7 @@
 % ==========================
 % LilyPond include path
 % ==========================
-% Point lyluatex at this package's own lilypond/ directory so song fragments
-% can \include "zubuvzpevnik.ily" by bare name, with no copy into songs/.
-% kpse finds the package whether it is reached via TEXINPUTS (building this
-% repo) or installed in ~/texmf (standalone use), so the same path works in
-% both cases. Appended to any existing includepaths so a host document's own
-% paths are preserved.
+% Lets fragments \include "zubuvzpevnik.ily" by bare name; see docs/internals.md.
 \directlua{
   local sty = kpse.find_file("zubuvzpevnik.sty")
   if sty then
@@ -119,8 +114,7 @@
 % ==========================
 % Features
 % ==========================
-% Localization: per-song language, Czech/English chord names, language
-% filtering, index sorting directive and Czech quotes.
+% Language, chord naming, filtering, index sort directive, Czech quotes
 \import{feature/}{lokalizace.cfg}
 % Index registration and formatting (title + author index)
 \import{feature/}{obsah.cfg}

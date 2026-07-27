@@ -25,8 +25,20 @@ done
 
 jobname=$1
 
-# Impose two A5 pages per A4 sheet. --short-edge: short-edge duplex (uniform
-# orientation). --no-crop: keep the A5 margins.
+# Must be a multiple of 4 (docs/internals.md), or pdfbook2 pads at the end.
+pages=$(pdfinfo "${jobname}.pdf" 2>/dev/null | awk '/^Pages:/{print $2}')
+if [ -z "$pages" ]; then
+    echo "WARNING: cannot read the page count of ${jobname}.pdf (pdfinfo missing?);" >&2
+    echo "         skipping the multiple-of-4 check" >&2
+elif [ "$((pages % 4))" -ne 0 ]; then
+    echo "ERROR: ${jobname}.pdf has $pages pages, which is not a multiple of 4."
+    echo "       The booklet would be imposed with the back cover on an inner"
+    echo "       sheet face. Check the front matter length (a two-page index is"
+    echo "       the usual cause) -- see \\padbookletpages in taborovyzpevnik.cls."
+    exit 1
+fi
+
+# --short-edge: uniform page orientation. --no-crop: keep the A5 margins.
 booklet_cmd=(pdfbook2 --paper=a4paper --short-edge --no-crop "${jobname}.pdf")
 
 echo "Creating booklet..."

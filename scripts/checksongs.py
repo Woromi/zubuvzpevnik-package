@@ -1,27 +1,11 @@
 #!/usr/bin/env python3
 """Lint the song database for missing or suspicious metadata.
 
-Scans the \\beginsong[...] preludes under songs/ and reports songs that are
-missing recommended metadata (tempo, key, tuning, language, ...), use an
-unknown song key (likely a typo), carry an unusual language, or look
-structurally broken. It also lists songs that no project \\input{}s, since
-those silently never appear in any songbook.
+Read-only developer tool: it never edits files or affects the build.
+Every check, and why it exists, is described in docs/tools.md.
 
-This is a developer convenience tool, not part of the build: nothing here
-edits files or affects the produced PDFs.
-
-Usage:
-    scripts/checksongs.py [options] [PATH ...]
-
-    PATH        Files or directories to scan (default: the songs/ dir).
-    --all       Also list songs that have no issues.
-    --missing FIELD[,FIELD...]
-                Only report songs missing the given field(s), e.g. "tem,key".
-    --no-orphans  Skip the "not referenced by any project" check.
-    --csv       Emit one CSV row per song (all metadata) instead of a report.
-    --strict    Exit non-zero if any warning (not just error) is found.
-
-Exit status: 0 = clean, 1 = errors found (or warnings with --strict).
+Usage: scripts/checksongs.py [options] [PATH ...]   (--help for the options)
+Exit status: 0 = clean, 1 = errors (or warnings with --strict), 2 = nothing found.
 """
 
 import argparse
@@ -32,53 +16,38 @@ import sys
 from pathlib import Path
 
 # --- Text that will not reach the PDF as intended ---------------------------
-# The books set text in Open Sans, which has no arrows (U+2190-21FF) and no
-# musical accidentals (U+266D-266F). LuaLaTeX does not fail on those: it logs
-# "Missing character" and drops them, so they vanish from the PDF without the
-# build ever going red. Verified by rendering each form and reading the glyph
-# back out of the PDF -- \rightarrow and $\rightarrow$ both draw an arrow (they
-# resolve through the math font), while \textrightarrow asks the text font and
-# so drops exactly like the bare character.
+# Open Sans has no arrow or accidental glyphs, and LuaLaTeX drops a missing
+# character with only a log line, so the build stays green. See docs/tools.md.
 UNRENDERABLE = {
     "♭": r"\flt",
-    "♮": r"\natural",
+    # songs.sty has no natural, so the math sign is the only one that renders
+    "♮": r"$\natural$",
     "♯": r"\shrp",
 }
 ARROWS = range(0x2190, 0x2200)
-# House style for a song that modulates: no spaces around the arrow, as in
-# key={Cm\rightarrow C}. The space after the macro is TeX's control-word
-# delimiter and is swallowed, so it prints tight on both sides.
+# House style for a modulation; the space after the macro is swallowed by TeX.
 ARROW_HINT = r"\rightarrow, as in key={Cm\rightarrow C}"
 BROKEN_MACROS = {r"\textrightarrow": ARROW_HINT}
 
-# songs.sty draws chord accidentals with its own \shrp / \flt (songs.sty:2632).
-# The math-mode \sharp / \flat render fine but draw a different glyph, so mixing
-# them makes the prelude's accidentals disagree with the printed chords.
+# \sharp / \flat render, but not like songs' own \shrp / \flt (songs.sty:2632).
 PREFER_SONGS_ACCIDENTAL = {r"\flat": r"\flt", r"\sharp": r"\shrp"}
 
-# `Bb`/`Eb` spelling typesets as the literal letters instead of a flat sign. It
-# is legible but inconsistent with the rest of the book, and checkkeys.py reads
-# the `b` as part of the chord quality rather than as an accidental.
+# `Bb` typesets as the literal letters, and checkkeys.py reads the b as quality.
 ASCII_FLAT_KEY = re.compile(r"(?<![A-Za-z])([A-H])b")
 ASCII_FLAT_CHORD = re.compile(r"\\\[([A-H])b")
 
 # --- What counts as a song key ---------------------------------------------
-# Custom keys defined by this repo (zubuvzpevnik/feature/metadata.cfg and
-# lokalizace.cfg) plus the songs-package built-ins. Anything else in a
-# \beginsong prelude is flagged as a possible typo.
+# This repo's keys plus the songs built-ins; anything else is a possible typo.
 CUSTOM_KEYS = {"lang", "key", "tun", "tem", "ori", "chr", "src"}
 BUILTIN_KEYS = {"by", "cr", "li", "index", "ititle"}
 KNOWN_KEYS = CUSTOM_KEYS | BUILTIN_KEYS
 
-# Recommended metadata, by song kind. Missing ones are warned about; the
-# README treats everything except `by` as optional, so these are nudges, not
-# errors. ori/chr/src/cr/li/ititle are situational and never nagged about.
+# Recommended by song kind: nudges, not errors. Situational keys are not nagged.
 REQUIRED = ["by"]
 RECOMMENDED_CHORDS = ["lang", "key", "tem", "tun"]
 RECOMMENDED_TINWHISTLE = ["key", "tem"]  # instrumental: lang/tun not expected
 
-# Languages we recognise. A lang= value outside this set is flagged as a
-# likely typo. Add new languages here when you genuinely introduce one.
+# Recognised languages; anything else is flagged as a likely typo.
 KNOWN_LANGS = {
     "czech", "slovak", "english", "german", "french", "spanish",
     "italian", "polish", "hungarian", "latin", "quenya",
@@ -97,10 +66,7 @@ SYMBOL = {Severity.ERROR: "✗", Severity.WARN: "⚠"}  # ✗  ⚠
 
 
 def strip_comments(text):
-    """Blank out TeX line comments so commented-out metadata, braces, and
-    \\beginsong/\\endsong inside comments are never parsed as real. A `%`
-    starts a comment unless escaped as `\\%`; the rest of the line is dropped
-    (the newline is kept so line structure is preserved)."""
+    """Blank out TeX line comments, keeping newlines so line numbers survive."""
     out = []
     for line in text.splitlines(keepends=True):
         i, cut = 0, None
@@ -166,12 +132,8 @@ def find_brace_aware(text, start, target):
 
 
 def parse_prelude(block):
-    """Parse a `[key={val}, ...]` prelude body into a dict of key -> value.
-
-    Brace-aware so values may contain commas, brackets, and TeX macros.
-    Bare (unbraced) values are accepted too. Order is not preserved beyond
-    insertion; the last value wins on duplicate keys.
-    """
+    """Parse a `[key={val}, ...]` prelude body into a dict. Brace-aware, so
+    values may hold commas, brackets and macros; last value wins on duplicates."""
     keys = {}
     i, n = 0, len(block)
     while i < n:
@@ -260,11 +222,8 @@ def parse_song(path):
 
 
 def check_rendering(info):
-    """Flag text that will not reach the PDF as intended.
-
-    Each distinct offender is reported once, with the first line it appears on
-    and how many times, so a song that uses a bad character throughout gives one
-    line of output rather than dozens."""
+    """Flag text that will not reach the PDF as intended. Each distinct offender
+    is reported once, with its first line and a count."""
     issues = []
     text = info.get("text") or ""
 
@@ -304,7 +263,7 @@ def check_rendering(info):
     key = info["keys"].get("key", "")
     if ASCII_FLAT_KEY.search(key):
         issues.append((Severity.WARN,
-                       f"key={{{key}}} spells a flat as 'b' - use \\flat so it prints as a flat sign"))
+                       f"key={{{key}}} spells a flat as 'b' - use \\flt so it prints as a flat sign"))
     roots = sorted(set(ASCII_FLAT_CHORD.findall(text)))
     if roots:
         spelled = ", ".join(f"\\[{r}b...]" for r in roots)
@@ -371,16 +330,16 @@ def collect_song_files(paths):
 
 
 def referenced_inputs(repo_root):
-    """Set of \\input{...} targets across all project .tex files (the part
-    after Artist/, i.e. how songs are referenced)."""
+    """Set of \\input{...} targets across all project .tex files. Comments are
+    stripped first: a song parked behind a `%` is in no songbook."""
     refs = set()
     proj = repo_root / "projects"
     if not proj.is_dir():
         return refs
-    import re
     pat = re.compile(r"\\input\{([^}]*)\}")
     for tex in proj.rglob("*.tex"):
-        for m in pat.finditer(tex.read_text(encoding="utf-8", errors="replace")):
+        text = strip_comments(tex.read_text(encoding="utf-8", errors="replace"))
+        for m in pat.finditer(text):
             refs.add(m.group(1).strip().removesuffix(".tex"))
     return refs
 

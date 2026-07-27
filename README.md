@@ -198,7 +198,9 @@ The `lang` key sets the `babel` language (hyphenation), the chord naming, and a 
 \excludelangs{czech,slovak}   % drop these languages
 ```
 
-A song whose `lang` doesn't match is removed from the output (and not numbered). The project build scripts expose this as `-l` / `-e`. (Defined in `feature/lokalizace.cfg`, which also maps `\uv{…}` to proper Czech quotes.)
+A song whose `lang` doesn't match is removed from the output (and not numbered), index entry included. The project build scripts expose this as `-l` / `-e`.
+
+A song with **no `lang` key** is kept by `\excludelangs` and dropped by `\includelangs`: including asks for songs *stated* to be in a language, excluding asks for everything that is not a named one. So the two are not complements — `\includelangs{czech}` plus `\excludelangs{czech}` does not reproduce the whole book. `scripts/checksongs.py --missing lang` lists the songs this affects. (Defined in `feature/lokalizace.cfg`, which also maps `\uv{…}` to proper Czech quotes.)
 
 ## Indexes
 
@@ -272,6 +274,9 @@ Any other `songs` option works too — see the `songs` manual.
 
 ## Source layout
 
+Why any of it is written the way it is — the `songs` patches, the chord
+registers, the chorus capture — is in [../docs/internals.md](../docs/internals.md).
+
 ```
 zubuvzpevnik/
 ├── zubuvzpevnik.sty        # loads songs, fonts, layout, then imports the below
@@ -283,7 +288,7 @@ zubuvzpevnik/
 │  ├── metadata.cfg         #   song metadata keys + the prelude box
 │  ├── akordy.cfg           #   capo + chord-diagram styling
 │  └── hlasy.cfg            #   multi-voice (\multivoice, \role)
-├── songpart/               # structural song sections (see songpart/README.md for internals)
+├── songpart/               # structural song sections
 │  ├── sloka.cfg            #   verse + \newSongPartType (bridge/prechorus/intro/outro)
 │  ├── refren.cfg           #   chorus + \insertchorus / \insertchorus*
 │  └── instrumental.cfg     #   chords-only part

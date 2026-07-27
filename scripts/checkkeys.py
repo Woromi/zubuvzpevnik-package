@@ -1,75 +1,14 @@
 #!/usr/bin/env python3
 """Sanity-check song keys against the actual chords, and propose missing ones.
 
-The `key={}` field names the key the song actually *sounds* in: the chord shapes
-you finger, shifted by any *global* \\transpose, by the \\capo amount, and by the
-\\tun{} tuning. This script extracts every \\[chord], applies \\transpose the way
-songs.sty does (cumulative, reset per \\beginsong), then the capo and tuning, plus
-the song's note-naming convention (Czech/Slovak use H=B-natural, B=B-flat), then
-infers the most likely key from the chord progression and compares it to what is
-written.
+Extracts every \\[chord], brings it to sounding pitch (\\transpose, \\capo, tun),
+expands ^ replays, scores all 24 keys and compares the winner to what is written.
 
-Tuning: a uniformly detuned guitar shifts every chord you finger. tun={E\\flat
-A\\flat D\\flat G\\flat B\\flat E\\flat} (or "Half-step down") lowers everything a
-semitone, so fingered Am sounds G#m. Only a *uniform* shift counts -- drop
-tunings like tun={D A D G B E} change one string, and the shapes still sound at
-their written pitch, so they shift nothing. String names are read as English
-(B=B-natural) regardless of lang, which is how the corpus writes them.
+A heuristic helper, not an authority: keys are genuinely ambiguous, so treat
+disagreements as "worth a look", not "wrong". It never edits files. How every
+rule below was chosen, and how to read the output: docs/tools.md
 
-Modulations: a \\transpose *before the first chord* is a global shift and applies
-to the whole song; a \\transpose *after* chords have started is a mid-song key
-change (a bridge, or a verse that climbs a semitone). Detection uses only the
-chords at the song's initial transposition level so the home key still resolves;
-such songs are tagged "(modulates)".
-
-Replayed chords: a ^ marker replays the next chord a part memorised, so half the
-corpus writes its chords once and repeats them with carets. Those are expanded,
-which is what lets --parts and the modulation rules below see a part that has no
-\\[chords] of its own. Replays feed the per-part view only, never the pooled chord
-count -- see emit(). A ^ inside a \\chordsoff run is a no-op in TeX (songs.sty
-\\let\\SB@rechord\\relax), which this does not model, so a handful of carets in
-such runs are read as replays that TeX skips.
-
-Truncated reprises: an abbreviated final chorus ("first line...", rest commented
-out) ends mid-phrase, so its last chord is not a cadence. Such a part -- chord
-sequence a strict prefix of a longer part of the same type, and text elided with
-"..." -- is skipped when deciding what chord the song ends on; the last complete
-part supplies the ending instead.
-
-Tinwhistle songs are skipped in directory scans: they are melody tabs with no
-\\[chords] to check, and their key is fixed by the tune's sharps/flats. Their key
-field reads "<song key> (<whistle> whistle)" -- the parenthetical names the
-whistle the tune is *playable on*, not the key. (Pass such a file explicitly to
-analyze it anyway; the parenthetical is then stripped before comparison.)
-
-Songs in two keys: a song whose parts sit in different keys names them all,
-home key first -- key={Cm → C} for a minor verse opening into a major refrain.
-Detecting any of the listed keys counts as agreement; the finer verdicts
-(relative / parallel) compare against the home key. → / -> / , / ; all separate.
-This is *not* what \\transpose marks: \\transpose reprints the chords at a new
-pitch, while a modulation like this leaves the printed chords alone and shifts
-where the music comes to rest.
-
-Certainty: reports are sorted by "margin" -- how far the detected key outscores
-the best of the stated ones (for --missing, how far the proposal outscores the
-runner-up).
-It is a score gap, not a probability. A large margin means the chords barely
-support what is written; a margin of 0 means the stated key scored just as well as
-the one that won and the sort merely broke a tie, so there is nothing to report --
-those are classed "tie" and stay as quiet as a match. The gap also grows with song
-length, so compare margins between songs of similar size.
-
-It is a heuristic helper, not an authority: keys are genuinely ambiguous
-(relative major/minor, modal songs, songs that modulate or end away from home),
-so treat disagreements as "worth a look," not "wrong." It never edits files.
-
-Usage:
-    scripts/checkkeys.py [PATH ...]      # report (default: songs/chords)
-    scripts/checkkeys.py --validate      # agreement stats vs. existing keys
-    scripts/checkkeys.py --missing       # only propose keys for songs lacking one
-    scripts/checkkeys.py --all           # show every song, not just disagreements
-    scripts/checkkeys.py --explain PATH  # show why a key is detected (the workings)
-    scripts/checkkeys.py --parts PATH    # detect a key per song part (spot modulations)
+Usage: scripts/checkkeys.py [--validate|--missing|--all|--explain|--parts] [PATH ...]
 """
 
 import argparse
@@ -95,18 +34,13 @@ STANDARD_TUNING = [4, 9, 2, 7, 11, 4]          # E A D G B E
 # Tunings spelled out in words rather than as string names.
 NAMED_TUNINGS = {"standard": 0, "half-step down": -1, "half step down": -1,
                  "whole-step down": -2, "whole step down": -2}
-# The chord register a plain \beginverse uses; sloka.cfg also names it "verse" so
-# \usechords/\copychords can refer to it.
+# The register a plain \beginverse uses; sloka.cfg also names it "verse".
 DEFAULT_REGISTER = "verse"
-# Song part types, as \beginverse...\endverse or \begin{verse}...\end{verse}.
-# Songs may add their own with \newSongPartType; load() picks those up too.
+# Part types; load() also picks up any the song adds with \newSongPartType.
 PART_TYPES = {"verse", "chorus", "prechorus", "recprechorus", "bridge", "bridgeb",
               "intro", "outro", "instrumental"}
 NEW_PART_RE = re.compile(r"\\newSongPartType\{([a-zA-Z]+)\}")
-# A single ordered scan: \transpose{n}, \[chord], or a song part boundary.
-# Scanning them in document order lets us apply the cumulative \transpose to only
-# the chords that follow it, the way songs.sty does, and lets us group chords by
-# the part they sit in (needed to spot truncated reprises).
+# One ordered scan, so \transpose applies only to the chords that follow it.
 TOKEN_RE = re.compile(
     r"\\transpose\*?\{([+-]?\d+)\}"                 # 1: transpose
     r"|\\\[([^\]]*)\]"                              # 2: chord
@@ -157,20 +91,17 @@ def parse_chord(tok, german):
     if not tok:
         return None
     tok = tok.split("/")[0].strip()           # drop slash bass
-    tok = re.sub(r"\\[a-zA-Z]+\s*$", "", tok)  # trailing macro junk
     pc, rest = parse_note(tok, german)
     if pc is None:
         return None
+    # Stripped after the root, or it would eat a macro accidental (\[C\shrp])
+    rest = re.sub(r"\\[a-zA-Z]+\s*$", "", rest)
     return (pc, is_minor(rest))
 
 
 def parse_tuning(val):
-    """Semitone shift a tuning applies to every chord shape, or 0.
-
-    A uniformly detuned guitar transposes everything you finger; a drop tuning
-    retunes one string and leaves the shapes sounding as written. String names
-    are read as English (B=B-natural), which is how the corpus spells them even
-    in Czech songs."""
+    """Semitone shift a tuning applies to every chord shape, or 0 for a drop
+    tuning. String names are read as English, as the corpus spells them."""
     if val is None:
         return 0
     name = " ".join(val.replace("\\", " ").split()).lower()
@@ -200,9 +131,7 @@ def parse_key_field(val, german):
 
 
 def parse_key_fields(val, german):
-    """Parse a key={} value to the list of keys it names, in order. A song that
-    modulates lists them all ("Cm -> C"); the first is the home key. Ignores a
-    trailing '(... whistle)' annotation."""
+    """Keys a key={} value names, home key first. Ignores "(... whistle)"."""
     val = re.sub(r"\(.*?\)", "", val).replace("\\ ", " ")   # \  is an escaped space
     val = re.sub(r"\\(?:textrightarrow|rightarrow|to)\b", "→", val).replace("$", " ")
     specs = [parse_key_field(part, german) for part in KEY_SPLIT_RE.split(val)]
@@ -215,9 +144,8 @@ def key_names(specs):
 
 
 def key_label(spec, german):
-    """A key name spelled the way this song spells notes, so a suggestion can be
-    pasted straight into key={}. Czech/Slovak songs write H for B-natural and B
-    for B-flat."""
+    """A key name spelled the way this song spells notes, so it can be pasted
+    straight into key={}."""
     pc, minor = spec
     if german and pc == 11:
         name = "H"
@@ -229,9 +157,8 @@ def key_label(spec, german):
 
 
 def part_type_keys(d, minimum=1):
-    """Pooled key per part type, in order of first appearance, for types with at
-    least `minimum` chords. Pooling a type's parts together beats scoring them
-    singly: one verse is often too short to settle a key, four of them are not."""
+    """Pooled key per part type, for types with at least `minimum` chords.
+    Pooling beats scoring parts singly: one verse is often too short."""
     sounds = d["capo"] + d["tuning"]
     order, pools = [], {}
     for kind, chords, elided, lvl in d["parts"]:
@@ -264,29 +191,11 @@ def load(path):
     key_m = re.search(r"key=\{([^}]*)\}", text)
     stated_raw = key_m.group(1) if key_m else None
     stated_all = parse_key_fields(stated_raw, german) if stated_raw else []
-    # Songs may define extra part types; without them the parts below come out
-    # empty and the ending chord falls back to the last chord in the file.
+    # Without the song's own part types, parts come out empty
     part_types = PART_TYPES | set(NEW_PART_RE.findall(text))
-    # Only \newSongPartType parts get a register of their own; verse and chorus
-    # share the songs package's default one.
+    # verse and chorus share the songs default register; the rest own theirs
     own_register = part_types - {"verse", "chorus"}
-    # Walk chords and \transpose in document order.
-    #
-    # \transpose is BLOCK-SCOPED, not cumulative over the song: songs.sty advances
-    # \SB@transposefactor without \global (songs.sty:1806) and every song part is a
-    # TeX group (\SB@beginverse opens \vbox\bgroup\begingroup, \SB@endverse closes
-    # it), so a \transpose inside a part reverts at \endverse. Several \transpose in
-    # one part do add up. One outside any part -- typically right after \beginsong --
-    # stays in force for the rest of the song, which is how a song gets printed at a
-    # pitch other than the one it was transcribed in.
-    #
-    # So `song_level` is the shift in force between parts, and a part transposed away
-    # from it is a mid-song modulation. The key={} field leads with the home key, so
-    # we keep only the chords at the home level and skip the modulated parts (else a
-    # song that climbs a semitone each verse would look keyless). \capo and the
-    # tuning are added later, in analyze(), to reach the sounding pitch: the projects
-    # do not enable songs' transposecapos option, so both are separate axes and the
-    # \[chord] shapes are what you actually finger.
+    # \transpose is BLOCK-SCOPED: docs/tools.md#transpose-is-block-scoped
     song_level = 0            # shift in force outside any part
     level = 0                 # shift in force right now
     in_part = False
@@ -295,11 +204,7 @@ def load(path):
     chords = []
     parts = []                # (part type, chords in it, text elided with "...")
     cur, start, cur_level = [], None, 0
-    # Chord memory. Each part type owns a register (songpart/sloka.cfg); the first
-    # part of a type memorises its \[chords] into it and later ones replay them,
-    # one chord per ^ marker. Registers hold the chords as *written* -- songs.sty
-    # transposes on emit -- so a replay in a transposed part sounds shifted.
-    # Unparseable entries are kept as None so the queue stays in step with TeX's.
+    # One register per part type, holding chords as *written*; None keeps step.
     registers = {}
     reg_name = None           # this part's own register
     memo_reg = None           # register the written chords are being stored into
@@ -309,14 +214,8 @@ def load(path):
     starved = 0               # ^ markers with nothing left to replay
 
     def emit(c, replayed=False):
-        """Record one sounding chord, written out or replayed via ^.
-
-        Replayed chords reach the part but NOT the pooled list. A repeated verse
-        would otherwise multiply its progression by the repeat count, which scales
-        the chord-frequency term while the fixed cadence bonuses (+6 ending, +3
-        opening) stay put -- diluting the very signals that separate a key from its
-        relative. Counting each written progression once keeps that balance, and
-        measurably: pooling replays costs 2 points of corpus agreement."""
+        """Record one sounding chord. Replays reach the part but NOT the pooled
+        list -- see docs/tools.md#replayed-chords for why that balance matters."""
         nonlocal home, cur_level, modulates
         pc, minor = c
         if home is None:
@@ -365,18 +264,8 @@ def load(path):
             cur, start, cur_level = [], m.end(), song_level
             in_part, level = True, song_level      # the part opens a TeX group
             reg_name = m.group(3) or m.group(4)
-            # Two steps, in the order TeX runs them.
-            #
-            # 1. The songs package acts on its single default register. \beginverse
-            #    memorises into it if empty, else replays from it (songs.sty:1295);
-            #    \beginchorus always just replays (songs.sty:1382), so a chorus
-            #    never stores anything.
-            # 2. sloka.cfg's \zub@partchords then points the memory at this part's
-            #    OWN register -- but \memorize only repoints \SB@creg, it does NOT
-            #    reset the replay tail \SB@ctail. So a part whose own register is
-            #    still empty memorises its written chords into it while its ^
-            #    markers keep replaying the DEFAULT register: that is how a bridge
-            #    with no chords of its own replays the verse's.
+            # songs acts on its default register, then sloka.cfg repoints \SB@creg
+            # but not the replay tail \SB@ctail: docs/tools.md#replayed-chords
             memo, memo_reg = [], DEFAULT_REGISTER
             if reg_name == "chorus" or registers.get(DEFAULT_REGISTER):
                 queue, memorizing = list(registers.get(DEFAULT_REGISTER, ())), False
@@ -421,16 +310,14 @@ def strip_comments(text):
     return "".join(out)
 
 
-# Diatonic triads as (interval_from_tonic, is_minor) for major and minor keys.
-# Minor includes the borrowed major V and major VII common in folk/pop.
+# Diatonic triads per key; minor includes the borrowed major V and VII.
 MAJOR_TRIADS = {(0, False), (2, True), (4, True), (5, False), (7, False), (9, True)}
 MINOR_TRIADS = {(0, True), (3, False), (5, True), (7, True), (8, False), (10, False), (7, False)}
 
 
 def is_truncated_reprise(i, parts):
-    """True if parts[i] is an abbreviated repeat: its chords are a strict prefix
-    of a longer part of the same type, and its text trails off in "...". Such a
-    part stops mid-phrase, so its final chord is not a cadence."""
+    """True if parts[i] is an abbreviated repeat, which stops mid-phrase and so
+    does not end on a cadence: a strict chord prefix of a longer part, elided."""
     kind, chords, elided = parts[i]
     if not elided:
         return False
@@ -439,8 +326,7 @@ def is_truncated_reprise(i, parts):
 
 
 def ending_chord(parts, fallback):
-    """The chord the song really ends on: the final chord of the last part that
-    is not a truncated reprise. Falls back to the last chord seen."""
+    """The last chord of the last part that is not a truncated reprise."""
     for i in range(len(parts) - 1, -1, -1):
         if not is_truncated_reprise(i, parts):
             return parts[i][1][-1]
@@ -448,10 +334,8 @@ def ending_chord(parts, fallback):
 
 
 def score_keys(sounding, last=None):
-    """Score all 24 keys against the chord list. Returns [(score, spec), ...]
-    sorted best-first. spec is (tonic_pc, is_minor). `last` is the chord the song
-    ends on (default: the last one seen). This is the heart of the heuristic;
-    --explain prints the top of this list so the ranking is visible."""
+    """Score all 24 keys, best first, as [(score, (tonic_pc, is_minor)), ...].
+    The weights are tabulated in docs/tools.md#scoring; --explain shows them."""
     freq = Counter(sounding)
     roots = {pc for pc, _ in sounding}
     first = sounding[0]
@@ -491,25 +375,21 @@ def detect_key(sounding, last=None):
 
 
 def relative(spec):
-    """Relative major<->minor of a key spec. Relative major sits 3 semitones
-    above the minor tonic (Am->C); relative minor 3 below the major (C->Am)."""
+    """Relative major<->minor: 3 semitones above a minor tonic, 3 below a major."""
     pc, minor = spec
     return ((pc + 3) % 12, False) if minor else ((pc - 3) % 12, True)
 
 
 def classify(stated_all, detected):
-    """stated_all: every key the field names (a modulating song lists more than
-    one). Detecting any of them is agreement; the finer verdicts compare against
-    the home key."""
+    """Detecting any of the named keys is agreement; the finer verdicts
+    (relative/parallel) compare against the home key."""
     if detected is None:
         return "no-chords"
     if not stated_all:
         return "propose"
     if detected in stated_all:
         return "match"
-    # The near-misses are tested against every named key, not just the home one:
-    # in a song that modulates, the detector may well land on the relative of the
-    # section it liked best rather than of the key the song opens in.
+    # Near-misses test every named key, not just the home one
     if any(detected == relative(k) for k in stated_all):
         return "relative"
     if any(k[0] == detected[0] for k in stated_all):
@@ -518,13 +398,8 @@ def classify(stated_all, detected):
 
 
 def margin(scored, stated_all, detected):
-    """How far the detected key beats what it is being compared against: the best
-    of the stated keys, or the runner-up when nothing is stated. It is the score
-    gap, not a probability -- 0 means the detector had no real preference (a coin
-    flip, so the disagreement means nothing), and it grows with both the strength
-    of the evidence and the length of the song. Never negative: when the detected
-    key came from the parts rather than the pooled ranking it can score below the
-    stated one, and that is not a disagreement worth ranking."""
+    """Score gap between the detected key and the best stated one (or the
+    runner-up). Clamped at 0; see docs/tools.md#reading-the-output."""
     if not scored:
         return None
     if not stated_all:
@@ -542,15 +417,13 @@ def analyze(path):
     shift = lambda seq: [((pc + sounds) % 12, mn) for pc, mn in seq]
     sounding = shift(d["chords"])
     d["sounding"] = sounding
-    # Only home-level parts can supply the ending: the key={} field leads with the
-    # home key, so a part transposed away from it must not decide the cadence.
+    # Only home-level parts may decide the cadence; key={} leads with the home key
     home_parts = [(kind, tuple(shift(c)), elided)
                   for kind, c, elided, lvl in d["parts"] if lvl == d["transpose"]]
     d["ending"] = ending_chord(home_parts, sounding[-1]) if sounding else None
     d["scored"] = score_keys(sounding, d["ending"]) if sounding else []
     detected = d["scored"][0][1] if d["scored"] else None
-    # The pooled chords are the wrong evidence for a song that plays in more than
-    # one key; when the parts say so, they decide instead.
+    # For a song in more than one key the parts, not the pooled chords, decide
     d["modulation"] = None
     if detected is not None:
         spec, why = modulation_key(d)
@@ -559,23 +432,16 @@ def analyze(path):
             detected = spec
     d["margin"] = margin(d["scored"], d["stated_all"], detected)
     cls = classify(d["stated_all"], detected)
-    # A zero margin means the stated key scored exactly as well as the one that
-    # won (or better, before clamping) -- the sort simply broke a tie. There is no
-    # evidence against what is written, so it is not a disagreement to report.
+    # A zero margin is a tie the sort broke: no evidence against what is written
     if cls in ("relative", "parallel", "mismatch") and d["margin"] == 0:
         cls = "tie"
-    # When the part types sit in different keys, a single key={} cannot be right
-    # for all of them. Suggest the compound -- but only when adopting it would
-    # actually settle this disagreement, i.e. the detected key is one of them.
+    # Suggest the compound key only when adopting it settles the disagreement
     d["split"] = None
     if cls in ("relative", "parallel", "mismatch"):
         ptk = part_type_keys(d, minimum=6)
         specs = [s for _, s in ptk]
         distinct = set(specs)
-        # Exactly two keys, neither the other's relative, and both the written and
-        # the detected key among them. More than two is short-part noise rather
-        # than a modulation, and a relative pair is the usual major/minor
-        # ambiguity -- suggesting "Am -> C" for that would be nonsense.
+        # >2 keys is short-part noise; a relative pair is major/minor ambiguity
         if (len(distinct) == 2 and detected in distinct
                 and any(s in distinct for s in d["stated_all"])
                 and relative(specs[0]) not in distinct):
@@ -584,8 +450,7 @@ def analyze(path):
 
 
 def best_shift(a, b):
-    """(semitones, agreement) for the transposition of `a` that best lines up with
-    `b`, comparing position by position over the shorter of the two."""
+    """(semitones, agreement) for the transposition of `a` best matching `b`."""
     n = min(len(a), len(b))
     if n < 4:
         return 0, 0.0
@@ -597,31 +462,15 @@ def best_shift(a, b):
     return best
 
 
-# How much of two parts must line up under one shift to call it the same
-# progression moved. Chosen by measuring the corpus: at this level the test fires
-# only on songs that really do replay a section at another pitch.
+# Overlap needed to call two parts the same progression moved; corpus-measured.
 RATCHET_MATCH = 0.8
 
 
 def modulation_key(d):
-    """The home key of a song whose parts are not all in the same key, or None.
-
-    Two signals, both meaning "the per-part evidence beats the pooled chords":
-
-    A song that modulates by writing its chords out at rising pitches -- rather
-    than with \\transpose -- pools into a chord set that is a mixture of keys and
-    represents none of them (Ruze z Texasu pools to A#m, a key no part of it is
-    in). The giveaway is structural: two parts of the same type are the same
-    progression at a different pitch. The key to name is then the opening one.
-
-    Separately, if every part on its own agrees on a key and only the pooled set
-    disagrees, the parts win -- that is a modal song whose pooled chords fit a
-    neighbouring key better (Ho Ho Watanay: eight parts all D, pooled says G).
-
-    Returns (spec, reason) or (None, None). Note "their detected keys differ" is
-    NOT a usable signal: verses commonly detect differently just from being short
-    and ending on different chords, and acting on that loses far more than it
-    gains (measured: 4 songs fixed, 14 broken)."""
+    """Home key of a song whose parts are not all in one key, as (spec, reason),
+    or (None, None). Two signals: a part type replayed at another pitch, or every
+    part agreeing where the pooled set does not. Why only those two, and why
+    "their keys differ" is not one: docs/tools.md#scoring."""
     ps = part_keys(d, with_chords=True)
     if len(ps) < 2:
         return None, None
@@ -644,8 +493,7 @@ def modulation_key(d):
 
 
 def part_keys(d, with_chords=False):
-    """Best key for each song part on its own, as [(kind, spec), ...] -- or
-    [(kind, spec, chords)] with with_chords."""
+    """Best key per part on its own; with_chords adds the sounding chords."""
     sounds = d["capo"] + d["tuning"]
     out = []
     for kind, chords, elided, lvl in d["parts"]:
@@ -669,9 +517,8 @@ def shifts_note(d):
 
 
 def parts_report(path, repo):
-    """Detect a key for each song part on its own. Two sections that disagree is
-    what a modulation looks like from the chords -- and the chord that is foreign
-    to the other section's key is what makes the split decidable."""
+    """Detect a key for each song part on its own -- what a modulation looks
+    like from the chords. See docs/tools.md#reading-the-output."""
     d, detected, cls = analyze(path)
     sounds = d["capo"] + d["tuning"]
     print(os.path.relpath(path, repo))
@@ -681,8 +528,7 @@ def parts_report(path, repo):
     if not d["parts"]:
         print("  no song parts with chords found\n")
         return
-    # An ellipsis in the lyrics is not a truncation, so ask the same question the
-    # cadence logic does: is this part a shortened repeat of a longer one?
+    # An ellipsis alone is not a truncation; ask what the cadence logic asks
     triples = [(k, c, e) for k, c, e, _ in d["parts"]]
     print(f"  {'#':>2}  {'part':<20} {'n':>3}  {'chords (sounding)':<44}  best keys for that part")
     for i, (kind, chords, elided, lvl) in enumerate(d["parts"]):
@@ -697,8 +543,7 @@ def parts_report(path, repo):
             seq = seq[:43] + "…"
         top = "   ".join(f"{key_name(s)} {sc:.0f}" for sc, s in score_keys(snd, snd[-1])[:3])
         print(f"  {i:>2}  {label:<20} {len(snd):>3}  {seq:<44}  {top}")
-    # Pooling each part type is what separates a verse key from a chorus key when
-    # any single part is too short to score reliably.
+    # Pooling by type separates a verse key from a chorus key
     kinds = sorted({k for k, _, _, _ in d["parts"]})
     if len(kinds) > 1 or len(d["parts"]) > len(kinds):
         print("  pooled by part type:")
@@ -714,8 +559,7 @@ def parts_report(path, repo):
 
 
 def explain(path, repo):
-    """Print the detector's reasoning for one song: the shifts applied, the
-    chords it sees, and the ranked key candidates with scores."""
+    """Print the detector's reasoning for one song."""
     d, detected, cls = analyze(path)
     print(os.path.relpath(path, repo))
     shift = []
@@ -775,8 +619,7 @@ def main():
     for p in scan:
         p = Path(p)
         if p.is_dir():
-            # Skip tinwhistle melody tabs: no \[chords] to check (pass a file
-            # explicitly to analyze it anyway).
+            # Skip tinwhistle melody tabs; pass one explicitly to analyze it
             files += [f for f in sorted(p.rglob("*.tex")) if "tinwhistle" not in f.parts]
         else:
             files += [p]
@@ -808,9 +651,7 @@ def main():
                   f" = {100*agree/len(graded):.0f}% of keyed songs")
         return 0
 
-    # Strongest disagreements first: the ones where the chords least support the
-    # stated key are the ones worth opening. A margin of 0 is a tie the sort
-    # broke arbitrarily, so those land at the bottom, next to the matches.
+    # Strongest disagreements first; ties land at the bottom, next to matches
     rows.sort(key=lambda r: (-(r[1]["margin"] or 0), os.path.relpath(r[0], repo)))
 
     for f, d, detected, cls in rows:

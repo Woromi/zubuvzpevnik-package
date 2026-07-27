@@ -71,12 +71,13 @@
 % ==========================
 % Front cover
 % ==========================
-% Use \renewcommand{\campyear}{<year>}, so old songbooks rebuild unchanged.
+% Pin per book with \renewcommand{\campyear}{<year>} so old books rebuild unchanged.
 \newcommand{\campyear}{\the\year}
 
-% Optional argument: a hand-made cover PDF whose first page replaces the
-% generated title page (the 2025 songbook used one, because its tengwar
-% title could not be typeset in LaTeX at the time).
+% Pages the front matter took, for \padbookletpages to check (see there).
+\newcounter{ZUB@frontpages}
+
+% Optional argument: a hand-made cover PDF replacing the generated title page.
 \newcommand{\makefrontcover}[1][]{%
 	\clearpage
 	\pagestyle{empty}
@@ -88,8 +89,7 @@
 			\vspace{16pt}
 			\includegraphics[width=350pt]{img/kane}\par
 			\vfill
-			% Camp name centered, with the year on its own line below it in the
-			% footer (flush right).
+			% Camp name centered; year below it, flush right
 			{\large\setmainfont{TheMix C5 Bold}\@title\par}
 			\vspace{3pt}
 			\makebox[\textwidth][r]{\small\setmainfont{TheMix C5 SemiLight}\campyear}
@@ -105,6 +105,8 @@
 
 	% Start page numbering from the following page
 	\clearpage
+	% For \padbookletpages; the reset below would otherwise hide this from it
+	\setcounter{ZUB@frontpages}{\numexpr\value{page}-1\relax}%
 	\pagestyle{fancy}
 	\setcounter{page}{1}
 }
@@ -132,6 +134,8 @@
 % ==========================
 % Fill booklet pages (multiple of 4)
 % ==========================
+% Pads songs to a multiple of #1, giving 2 + 4n + 2 overall; only valid while
+% the front matter is 2 pages. docs/internals.md#document-classes-and-booklet-page-maths
 \RequirePackage{modulus}
 \newcounter{extrablankpages}
 \newcommand{\padbookletpages}[1][4]{%
@@ -148,6 +152,12 @@
 	\null\newpage
 	\addtocounter{extrablankpages}{-1}%
 	\repeat
+	\ifnum\value{ZUB@frontpages}=\tw@\else
+		\ClassWarning{taborovyzpevnik}{Front matter is
+			\theZUB@frontpages\space page(s), not 2, so the book will not come out a
+			multiple of 4 pages and makebooklet.sh will refuse to impose it.
+			Shorten the index or pad the front matter to 2 pages}%
+	\fi
 }
 
 \endinput

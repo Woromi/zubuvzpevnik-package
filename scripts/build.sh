@@ -67,10 +67,7 @@ run_lualatex() {
     fi
 }
 
-# The zubuvzpevnik package is found via TEXINPUTS (set in each project's
-# build.sh) and locates its own lilypond includes, so no install step is needed.
-# Warn early — before the long first pass — if indexes will be sorted without a
-# Czech locale; buildindex.sh re-checks and falls back at sort time.
+# Warn before the long first pass; buildindex.sh re-checks and falls back.
 if [ -n "$indexFiles" ] && ! locale -a 2>/dev/null | grep -Eiq '^cs_CZ(\.utf-?8)?$'; then
     echo "WARNING: no Czech locale (cs_CZ) found; song indexes will sort with the"
     echo "         system default locale. On Debian/Ubuntu: sudo locale-gen cs_CZ.UTF-8"

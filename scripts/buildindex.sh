@@ -10,9 +10,7 @@ if [ $# -lt 1 ]; then
     exit 1
 fi
 
-# Czech collation determines the index order (including the "Ch" block).
-# The locale name spelling differs between systems (glibc: cs_CZ.utf8,
-# macOS/BSD: cs_CZ.UTF-8), so pick the first one this machine actually has.
+# Czech collation sets the index order; the locale spelling varies per system.
 LOC=""
 for cand in cs_CZ.utf8 cs_CZ.UTF-8 cs_CZ; do
     LOC="$(locale -a 2>/dev/null | grep -Fixm1 -- "$cand" || true)"
