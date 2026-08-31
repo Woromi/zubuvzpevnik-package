@@ -194,49 +194,85 @@ function songcmp(s1, s2)
     return s1["idx"] < s2["idx"]
 end
 
+-- Candidate base letters for blockchar, and the letter appended to probe the
+-- locale; a late one also folds expansions such as "Æ" into "A".
+blockbases = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+blockprobe = "Z"
+
+-- startcharlt(<char1>,<char2>)
+--   Return true if block character <char1> sorts before <char2>.  Only the
+--   numeric blocks are ours, ordered the way songcmp sorts the titles under
+--   them: before the letters and by value, where the locale would put them
+--   after "Ž" and in digit order.  See docs/building.md#index-blocks.
+function startcharlt(c1, c2)
+    local n1, n2 = tonumber(c1), tonumber(c2)
+    if n1 and n2 then
+        return n1 < n2
+    end
+    if n1 or n2 then
+        return n1 ~= nil
+    end
+    return c1 < c2
+end
+
+-- blockchar(<char>)
+--   Fold a start character onto the letter whose index block it belongs to:
+--   "Ú" onto "U", but "Š" onto itself, because Czech collation interleaves the
+--   first with "U" while giving the second a run of its own.  The locale
+--   decides, the same way the "Ch" digraph is detected below; digits and
+--   anything it does not fold keep their own block.  See
+--   docs/building.md#index-blocks.
+function blockchar(c)
+    for b in blockbases:gmatch(".") do
+        -- An accent sorts below any following letter, so "Ú" precedes "UZ"
+        -- where the distinct letter "Š" does not precede "SZ".
+        if c == b or (b < c and c < b .. blockprobe) then
+            return b
+        end
+    end
+    return c
+end
+
 -- setstartchars(<array>)
---   Try to find canonical "start characters" for each block of songs in a
---   sorted <array> of songs.  Since Lua doesn't currently have any means of
---   imparting a locale's alphabet, we adopt the following strategy:  Extract
---   the first unicode character from each title in the sorted list of titles
---   until reaching one that the locale's collation algorithm says is "bigger"
---   than the last.  Find the "smallest" first character in that set using
---   NON-UNICODE lexicographic sort.  This tends to be the most canonical one,
---   since unicode tends to put canonical (e.g., no-accent) glyphs at lower
---   code points than non-canonical (e.g., accented) ones.  (Unfortunately, if
---   none of the titles in the block start with the desired canonical glyph,
---   there's no way to guess it; we just use the best one available.)
+--   Find the "start character" of each block of songs in a sorted <array> of
+--   songs.  Lua has no way to ask a locale for its alphabet, so the blocks are
+--   recovered from the sorted titles: fold each first character onto its block
+--   character (a leading number, else see blockchar), and start a new block at
+--   each one that sorts after the last.
 function setstartchars(songs)
     local start = 1
     local best
 
     for i = 1, #songs do
-        local c, c2 = unicode.utf8.match(cleantitle(songs[i]), "(%w)(%w?)")
+        local t = unicode.utf8.match(cleantitle(songs[i]), "%w.*")
+        -- A leading number blocks by its value, the way songcmp sorts it, so
+        -- "21 Guns" heads a "21" block.  tonumber normalizes, keeping "007
+        -- James" and "7 dní" together under "7".
+        local c = t and numprefix(t)
         if c then
+            c = tostring(c)
+        elseif t then
+            local c2
+            c, c2 = unicode.utf8.match(t, "(%w)(%w?)")
             c = unicode.utf8.upper(c)
             -- Treat the Czech digraph "Ch" as its own block character, but only
             -- when the locale actually collates "CH" after "H" (as cs_CZ does).
             if c == "C" and unicode.utf8.upper(c2) == "H" and "H" < "CH" then
                 c = "CH"
             end
+            c = blockchar(c)
+        end
+        if c then
             if not best then
                 songs[start]["newblk"], start, best = "\\#", i, c
-            elseif best < c then
+            elseif startcharlt(best, c) then
                 songs[start]["newblk"], start, best = best, i, c
-            elseif not (c < best) then
-                -- c and best are collation-equal; prefer the canonical glyph.
-                if #c < #best then
-                    best = c
-                elseif #c == #best then
-                    for j = 1, #c do
-                        if c:byte(j) < best:byte(j) then
-                            best = c;
-                            break
-                        elseif c:byte(j) > best:byte(j) then
-                            break
-                        end
-                    end
-                end
+            elseif c ~= best then
+                -- Unreachable unless the sort order and the block characters
+                -- disagree, which silently merges blocks; say so rather than
+                -- emit a one-block index.
+                io.stderr:write("songidx: warning: block character \"", c, "\" sorts before \"", best,
+                    "\"; merging it into that block\n")
             end
         elseif best then
             songs[start]["newblk"], start, best = best, i, nil

@@ -95,6 +95,39 @@ projects/velkyzpevnik/build.sh -l czech,slovak -o velkyzpevnikCz
 Two passes converge because both classes restart page numbering after the front
 matter, so the index's own length never shifts the song page numbers it records.
 
+#### Index blocks
+
+`songidx.lua` is not told the alphabet. It recovers the index sections by
+walking the first character of each sorted title and starting a new block
+whenever the locale collates one after the last, which means **a section can
+only exist where the sort produces a contiguous run of titles**. Two rules
+follow from that, and both are decided by the locale rather than by a table, so
+a build under a different one gets that locale's alphabet:
+
+- **Accents.** Czech collation interleaves `Á Ď É Ě Í Ň Ó Ť Ú Ů Ý` with their
+  base letter — `Ábel, Anna, ďábel, dálka, dech` — so they cannot have sections
+  of their own, however much they are letters when reciting the alphabet. A `Ď`
+  section would start at "ďábel" and swallow every later D title. `Č Ch Ř Š Ž`
+  *do* get runs (`cesta, cyklus, čas, chvála`) and so do get sections.
+  `blockchar` folds each start character onto whichever it is: `strcoll` is a
+  total order and never reports an accent as equal, so it is probed instead —
+  an accent sorts below any following letter, putting "Ú" before "UZ" where the
+  distinct letter "Š" does not come before "SZ".
+- **Numbers.** A leading number is a section of its own, so "21 Guns" heads a
+  `21` section and a book can end up with `2`, `7`, `21`, `100`. `songcmp`
+  sorts those titles before the words and by value, and the locale agrees with
+  neither — it files digits after `Ž`, and orders "1000" ahead of "21" — so
+  `startcharlt` orders numeric sections by value to match the sort. The label
+  goes through `tonumber`, which normalizes it and so keeps "007 James" in the
+  same section as "7 dní".
+
+Leading punctuation needs no rule: both the sort and the block scan skip to the
+first alphanumeric, so "!Divný" files under D. A title with no alphanumeric at
+all sorts first, into a `#` section. When the two orderings do disagree the
+block scan silently swallows the rest of the index into one section — the
+symptom is an index that is one giant block — so it now warns on stderr
+instead, visible with `-v`.
+
 Each project script resolves the repository root once into `REPO_ROOT` instead
 of hanging `../../` off `SCRIPT_DIR`, so the paths TeX prints for every song it
 opens are 28 characters shorter.
