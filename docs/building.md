@@ -47,6 +47,7 @@ Each project has its own script:
 
 ```bash
 projects/velkyzpevnik/build.sh       # Main A4 songbook → velkyzpevnik.pdf
+projects/malyzpevnik/build.sh        # A5 hardback songbook → malyzpevnik.pdf + malyzpevnikBook.pdf
 projects/tabory/2026/build.sh        # A5 camp songbook → tabor2026.pdf + tabor2026Booklet.pdf
 projects/tinwhistle/build.sh         # Tin whistle sheet music → tinwhistle.pdf
 projects/interpreti/ayreon/build.sh  # Single-artist songbook → ayreon.pdf
@@ -66,6 +67,7 @@ Options, passed through to `scripts/build.sh`:
 | `-e lang[,…]` | exclude songs with those languages |
 | `-o output` | output PDF name, without extension |
 | `-c` | remove build files afterwards |
+| `-s sheets` | *malyzpevnik only* — target sheets per signature (default 5) |
 
 `-l` and `-e` cannot be combined. A song with no `lang` key is kept by `-e` and
 dropped by `-l`; see
@@ -199,6 +201,7 @@ class-side warning that diagnoses a break, are in
 
 | Script | Purpose |
 |---|---|
+| `scripts/makebook.sh` | cut a bound book into signatures and impose each as a booklet (`malyzpevnik`) |
 | `scripts/cleanup.sh` | remove LaTeX build files across the repo (skips `.git`; keeps `.sbx`, which the next first pass wants) |
 | `scripts/install.sh` | copy the package into `~/texmf/tex/latex` for use outside this repo |
 | `scripts/uninstall.sh` | remove it again |

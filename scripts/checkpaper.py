@@ -10,7 +10,8 @@ Usage: scripts/checkpaper.py [options] [PATH ...]   (--help for the options)
 Exit status: 0 = clean, 1 = a flag disagrees with the measurement, 2 = nothing found.
 """
 
-# TODO: Not only it should check if it fits the page, but it should also check if all lines fit on one line (no auto line break)
+# TODO: Not only it should check if it fits the page, but it should also check if all lines fit on one line (no auto line break). 
+# TODO: For the songs that do not fit just one page, it should be possible to make them fit on two pages on the A5 songbook, but then it should also check that those 2 pages are always next to each other (so that it is not necessary to turn the page when playing the song) and that there are no empty pages before or the song
 
 import argparse
 import os
@@ -25,9 +26,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from checksongs import (collect_song_files, find_matching, input_name,  # noqa: E402
                         parse_song, strip_comments)
 
-# Paper -> the document class that typesets it. Add a row when a class is added.
+# Class -> the paper it typesets. Several classes can share a paper: the A5 ones
+# share zubuvzpevnik/a5layout.cfg, so a song measures the same on either.
+CLASS_PAPER = {"velkyzpevnik": "a4", "taborovyzpevnik": "a5", "malyzpevnik": "a5"}
+# Paper -> the class --measure typesets it with.
 PAPER_CLASS = {"a4": "velkyzpevnik", "a5": "taborovyzpevnik"}
-CLASS_PAPER = {cls: paper for paper, cls in PAPER_CLASS.items()}
 # What every project passes; the probe has to match to measure the real layout.
 CLASS_OPTIONS = "chorded, onesongcolumn, noshading"
 

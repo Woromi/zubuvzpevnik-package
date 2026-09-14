@@ -24,6 +24,7 @@ silently doing nothing.
 - [Song parts](#song-parts)
 - [The chorus (`refren.cfg`)](#the-chorus-refrencfg)
 - [Document classes and booklet page maths](#document-classes-and-booklet-page-maths)
+  - [The hardback book: signatures instead of one booklet](#the-hardback-book-signatures-instead-of-one-booklet)
 
 ## Source layout
 
@@ -31,7 +32,9 @@ silently doing nothing.
 zubuvzpevnik/
 ├── zubuvzpevnik.sty      loads songs, fonts, layout; \imports the modules below
 ├── velkyzpevnik.cls      A4 class  (article)
-├── taborovyzpevnik.cls   A5 class  (book, twoside)
+├── malyzpevnik.cls       A5 class  (book, twoside) hand-bound hardback
+├── taborovyzpevnik.cls   A5 class  (book, twoside) camp booklet
+├── a5layout.cfg          the A5 body both A5 classes share
 ├── feature/
 │  ├── lokalizace.cfg     language, note naming, filtering, quotes
 │  ├── obsah.cfg          index registration and formatting
@@ -305,10 +308,17 @@ newline produces.
 
 ## Document classes and booklet page maths
 
-Both classes load the package, set `geometry` margins, override the `\zub@…`
-font hooks and add cover/index commands. `velkyzpevnik.cls` is A4 on `article`
-with `\largepapertrue`; `taborovyzpevnik.cls` is A5 on `book`, two-sided, with
-multi-voice off.
+All three classes load the package, set `geometry` margins, override the
+`\zub@…` font hooks and add cover/index commands. `velkyzpevnik.cls` is A4 on
+`article` with `\largepapertrue`; `taborovyzpevnik.cls` and `malyzpevnik.cls`
+are A5 on `book`, two-sided, with multi-voice off.
+
+The two A5 classes take their geometry, song fonts and spacing from one file,
+`zubuvzpevnik/a5layout.cfg`, rather than each setting their own. That file *is*
+the text block `pap={…,a5}` was measured against, so a song that fits the camp
+booklet fits the hardback book and the mark means one thing; editing it makes
+every A5 mark in the database stale. It warns if a class loads it on a page
+that is not A5.
 
 `\campyear` defaults to the build year and is pinned per book
 (`\renewcommand{\campyear}{2026}`) so old songbooks rebuild unchanged.
@@ -326,6 +336,44 @@ if the whole PDF is a multiple of 4 pages. The structure that guarantees it:
 ──────────
  4 + 4n    → always a multiple of 4
 ```
+
+#### The hardback book: signatures instead of one booklet
+
+`malyzpevnik.cls` is bound by hand, so it is not one booklet: the pages are cut
+into several gatherings that are folded and sewn separately. That changes both
+ends of the arithmetic.
+
+It needs no cover arithmetic, because it has no printed cover — the book is
+cased in by hand and the title page is the first page inside. Page numbers run
+as one arabic sequence from that page to the last, which is also why the
+indexes are at the end: with no restart, an index at the front would move every
+song page number it records and the two passes would never converge.
+
+`\padbookpages` therefore only rounds the whole document up to a multiple of 4,
+so the last sheet of paper is complete. `scripts/makebook.sh` cuts the
+signatures out of that page count afterwards: it picks an **even** number of
+signatures as near the target thickness as it can (`-s`, default 5 sheets) and
+gives them sheet counts differing by at most one, so nothing has to be padded
+beyond the whole sheet. A 76-page book comes out as 19 sheets in 4 signatures
+of 5, 5, 5 and 4.
+
+Each signature is extracted with `pdfseparate`/`pdfunite` and imposed on its own
+with the same `pdfbook2 --short-edge --no-crop` recipe as the camp booklet, then
+the imposed signatures are concatenated in order. Extraction goes through
+poppler rather than `pdfjam` because `pdfjam` re-lays the pages out on its own
+paper, which would rescale them off A5 before `pdfbook2` ever ran. `pdfbook2`
+itself runs with the temporary directory as its working directory: it renames a
+scratch file out of the working directory, which fails across filesystems when
+the temporary directory is on tmpfs.
+
+A binding allowance is deliberately absent. `geometry`'s `bindingoffset` would
+narrow the text column, every song would reflow and all 69 A5 measurements
+would be wrong; and the imposition has no slack to give, since two A5 pages fill
+an A4 sheet exactly. If the sewn spine turns out to swallow too much of the
+inner margin, the change that keeps the marks valid is to widen the *paper* in
+the class by the allowance while leaving the text block alone, and register the
+new size with `\zub@paperis` — the pages then scale down as a whole at
+imposition, and nothing reflows.
 
 `\padbookletpages` can only see the middle: `\makefrontcover` resets the page
 counter to 1 so the songs number from one, which hides the front matter from it.

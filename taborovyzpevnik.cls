@@ -20,21 +20,11 @@
 \RequirePackage{zubuvzpevnik}
 
 % ==========================
-% Page layout
+% A5 body
 % ==========================
-\RequirePackage[
-	tmargin=1.5cm,
-	bmargin=1.5cm,
-	lmargin=1cm,
-	rmargin=1cm
-]{geometry}
-
-% ==========================
-% Song styling overrides
-% ==========================
-\renewcommand{\zub@lyricfont}{\ttfamily}
-\renewcommand{\zub@printchord}{\ttfamily\bfseries}
-\renewcommand{\zub@stitlefont}{\Huge}
+% Geometry, song fonts and spacing live in one file so this class and
+% malyzpevnik cannot drift apart -- pap={a5} has to mean one thing.
+\input{a5layout.cfg}
 
 % ==========================
 % Images
@@ -52,16 +42,6 @@
 \fancyfoot[LE,RO]{\thepage} % Page numbers on outer corners
 \renewcommand{\headrulewidth}{0pt} % no header line
 \renewcommand{\footrulewidth}{0pt} % no footer line
-
-% ==========================
-% Paragraph & spacing
-% ==========================
-\setlength{\parindent}{0pt} % No indent for song lines
-\setlength{\parskip}{6pt} % Space between stanzas
-\RequirePackage{setspace}
-\onehalfspacing % Slightly spaced lines for readability
-
-\multivoiceoff
 
 % ==========================
 % Prevent page breaks inside songs

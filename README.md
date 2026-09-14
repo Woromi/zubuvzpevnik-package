@@ -270,6 +270,25 @@ The big **A4** songbook, based on `article`. Adds:
 - `\insertindex` — a two-column table of contents built from both indexes (`obsah` and `obsahAutor`).
 - Song metadata is shown in a box beside the title (large-paper layout).
 
+### malyzpevnik.cls
+
+The **A5** songbook meant to be bound by hand as a hardback, based on `book`
+(two-sided). It shares its whole body — geometry, song fonts, spacing,
+multi-voice off — with `taborovyzpevnik` through `a5layout.cfg`, so a song
+marked `pap={a4,a5}` fits both. What differs is everything around the songs:
+
+- `\maketitlepage` — the first page *inside* the book (there is no printed
+  case), with the document `\title`/`\author`/`\date`. `\maketitlepage[image]`
+  prints an image under the title.
+- `\insertindex` — both indexes, one column, meant to be called at the **end**.
+- `\padbookpages[n]` — pad with blank pages up to a multiple of `n` (default 4)
+  so the last sheet of paper is complete; `scripts/makebook.sh` cuts the
+  signatures out afterwards.
+- Page numbers are one arabic sequence from the title page to the last page,
+  with the folio suppressed on the title page only. Nothing restarts the
+  counter, which is why the indexes have to come last — see
+  [../docs/internals.md](../docs/internals.md#the-hardback-book-signatures-instead-of-one-booklet).
+
 ### taborovyzpevnik.cls
 
 The small **A5** camp songbook, based on `book` (two-sided, half-line spacing, multi-voice off). Adds:
@@ -284,7 +303,7 @@ The generated cover uses the SKAUT Bold and TheMix C5 fonts (Junák visual style
 
 ## Package / class options
 
-Options on `\documentclass[…]{velkyzpevnik}` (or `taborovyzpevnik`) are passed through to `songs`. The ones the projects use:
+Options on `\documentclass[…]{velkyzpevnik}` (or `malyzpevnik`/`taborovyzpevnik`) are passed through to `songs`. The ones the projects use:
 
 | Option | Effect |
 |--------|--------|
@@ -304,7 +323,9 @@ registers, the chorus capture — is in [../docs/internals.md](../docs/internals
 zubuvzpevnik/
 ├── zubuvzpevnik.sty        # loads songs, fonts, layout, then imports the below
 ├── velkyzpevnik.cls        # A4 class
-├── taborovyzpevnik.cls     # A5 camp/booklet class
+├── malyzpevnik.cls         # A5 class, hand-bound hardback
+├── taborovyzpevnik.cls     # A5 class, camp booklet
+├── a5layout.cfg            # the A5 body both A5 classes share
 ├── feature/                # cross-cutting features
 │  ├── lokalizace.cfg       #   language, H/B chords, filtering, Czech quotes, index sort
 │  ├── obsah.cfg            #   index registration + formatting
