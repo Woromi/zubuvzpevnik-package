@@ -229,7 +229,9 @@ known to fit is written down, so no key means none of them — whether the song 
 too long for any page or nobody has measured it yet.
 
 There is no `a4x2`: `velkyzpevnik` is one-sided, so it cannot promise the second
-page of a song faces the first.
+page of a song faces the first. The `x2` mark is written by hand — a song that
+measures two pages may be one meant for a spread or one nobody has tightened
+yet, which is a reading of the song rather than of the page.
 
 No class declares which paper it is: `\zub@papername` is read off
 `\paperwidth`/`\paperheight` at `\begin{document}` and matched against the

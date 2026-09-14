@@ -41,6 +41,7 @@ SPREAD_CLASSES = {"taborovyzpevnik", "malyzpevnik"}
 # spelling is in checksongs.py's KNOWN_PAPERS and in feature/metadata.cfg. Only
 # a paper whose class is two-sided can promise the two pages face each other,
 # so a4 has no such mark and a song needing two A4 pages still fits nothing.
+# --write never writes this one; see report_measured for why.
 SPREAD_SUFFIX = "x2"
 SPREAD_PAPERS = {CLASS_PAPER[cls] for cls in SPREAD_CLASSES}
 
@@ -107,12 +108,19 @@ def claim(papers, paper):
     return 0
 
 
-def mark(paper, pages):
-    """The pap entry for a page count, or None for a song that fits neither one
-    page of this paper nor a spread of two."""
-    if pages == 2 and paper in SPREAD_PAPERS:
-        return paper + SPREAD_SUFFIX
-    return paper if pages == 1 else None
+def fits(paper, pages, broken):
+    """How much room the measurement leaves a song on one paper: 1 page, 2
+    facing ones, or 0 for no fit at all. A line too wide for the column is not a
+    fit however few pages the song takes."""
+    if broken or pages > 2 or (pages == 2 and paper not in SPREAD_PAPERS):
+        return 0
+    return pages
+
+
+def entry(paper, room):
+    """How a pap key spells that much room, or None for a song that fits
+    neither one page of this paper nor a spread of two."""
+    return {1: paper, 2: paper + SPREAD_SUFFIX}.get(room)
 
 
 def project_files(repo_root):
@@ -452,53 +460,74 @@ def report_projects(parsed, repo_root):
 
 
 def report_measured(parsed, repo_root, paper, pages, wraps, write):
-    """Measured page counts against the flags. A song fits a paper when it takes
-    one page of it, or two facing ones, and no line of it had to be broken."""
+    """Measured room against the flags. A song fits a paper when it takes one
+    page of it, or two facing ones, and no line of it had to be broken.
+
+    The spread mark is only ever *offered*: a song measuring two pages may be
+    one meant to open across a spread, or one nobody has tightened onto a page
+    yet, and only a person knows which. So --write records `paper` or nothing,
+    and pap={<paper>x2} stays something a human writes."""
     print(f"\nMeasured on {paper} ({PAPER_CLASS[paper]}):")
-    changes, missing = [], []
+    changes, offers, missing = [], [], []
     for f, info in sorted(parsed, key=lambda r: str(r[0])):
-        n = pages.get(input_name(f, repo_root))
-        if n is None:
+        name = input_name(f, repo_root)
+        if pages.get(name) is None:
             missing.append((f, info))
             continue
-        broken = wraps.get(input_name(f, repo_root), [])
-        now = None if broken else mark(paper, n)
-        was = mark(paper, claim(declared(info), paper))
-        if now != was:
-            changes.append((f, info, was, now, n, broken))
+        n, broken = pages[name], wraps.get(name, [])
+        claimed, found = claim(declared(info), paper), fits(paper, n, broken)
+        if claimed == found:
+            continue
+        if found == 2 and claimed == 0:
+            offers.append((f, info, n, broken))
+        else:
+            changes.append((f, info, claimed, found, n, broken))
 
-    add = [c for c in changes if c[2] is None]
-    drop = [c for c in changes if c[3] is None]
-    swap = [c for c in changes if c[2] and c[3]]
+    add = [c for c in changes if c[2] == 0]
+    drop = [c for c in changes if c[3] != 1]
+    tighter = [c for c in changes if c[2] == 2 and c[3] == 1]
     for label, rows, sign in (
-            (f"Fits {paper} but is not marked for it", add, "+"),
-            (f"Marked for {paper} but does not fit", drop, "-"),
-            (f"Marked for {paper}, but fits it differently", swap, "~")):
+            (f"Fits one {paper} page but is not marked for it", add, "+"),
+            (f"Marked for {paper} but no longer fits it", drop, "-"),
+            (f"Marked for two {paper} pages but now fits one", tighter, "~")):
         if not rows:
             continue
         print(f"\n  {label} ({len(rows)}):")
-        for f, _, was, now, n, broken in rows:
-            key = f"{was} -> {now}" if was and now else (now or was)
-            print(f"    {sign} {os.path.relpath(f, repo_root)}  {key}  ({measured_as(n, broken)})")
+        for f, _, claimed, found, n, broken in rows:
+            # The right-hand side is what --write would leave behind, so a song
+            # that turns out to need a spread reads as one losing its mark.
+            was, now = entry(paper, claimed) or "-", paper if found == 1 else "-"
+            spread = f"; pap={{{paper}{SPREAD_SUFFIX}}} by hand if the spread is meant"
+            print(f"    {sign} {os.path.relpath(f, repo_root)}  {was} -> {now}  "
+                  f"({measured_as(n, broken)}){spread if found == 2 else ''}")
+    if offers:
+        print(f"\n  Fits two facing {paper} pages but is marked for neither ({len(offers)}), "
+              "and left alone:")
+        print(f"    write pap={{{paper}{SPREAD_SUFFIX}}} in the ones meant to open across a "
+              "spread. No measurement")
+        print("    can tell those from songs nobody has tightened onto one page yet.")
+        for f, _, n, broken in offers:
+            print(f"      {os.path.relpath(f, repo_root)}  ({measured_as(n, broken)})")
     if missing:
         print(f"\n  Not measured ({len(missing)}): " +
               ", ".join(os.path.relpath(f, repo_root) for f, _ in missing))
 
-    fits = [mark(paper, n) for name, n in pages.items() if not wraps.get(name)]
+    room = [fits(paper, n, wraps.get(name)) for name, n in pages.items()]
     wide = sum(1 for name in pages if wraps.get(name))
-    spread_note = (f" and {fits.count(paper + SPREAD_SUFFIX)} fit two facing ones"
+    spread_note = (f" and {room.count(2)} fit two facing ones"
                    if paper in SPREAD_PAPERS else "")
     print(f"\n{'=' * 60}")
-    print(f"{fits.count(paper)}/{len(pages)} songs fit one {paper} page{spread_note}; "
-          f"{len(add)} to add, {len(drop)} to remove, {len(swap)} to change.")
+    print(f"{room.count(1)}/{len(pages)} songs fit one {paper} page{spread_note}; "
+          f"{len(add)} to add, {len(drop)} to remove, {len(tighter)} to tighten"
+          + (f", {len(offers)} to look at by hand." if offers else "."))
     if wide:
         print(f"{plural(wide, 'song')} have a line too wide for {paper}, which is "
               "what stops them fitting it.")
 
     if write:
-        for f, info, _, now, _, _ in changes:
+        for f, info, _, found, _, _ in changes:
             others = [p for p in declared(info) if p not in (paper, paper + SPREAD_SUFFIX)]
-            set_pap(f, sorted(others + ([now] if now else [])))
+            set_pap(f, sorted(others + ([paper] if found == 1 else [])))
         print(f"Wrote the pap key in {len(changes)} file(s).")
     return len(changes)
 

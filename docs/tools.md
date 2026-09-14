@@ -255,6 +255,15 @@ Only A5 has the `x2` spelling, because only its classes are two-sided.
 a song opposite the first, and a song needing two A4 pages still fits nothing —
 which is what keeps the A4 build listing it.
 
+**`x2` is written by hand.** `--write` never adds it. Two measured pages mean
+either a song meant to open across a spread or a song nobody has tightened onto
+one page yet, and nothing on the page tells those apart — so `--measure` lists
+them and leaves them alone, and marking one is a decision about the song. What
+`--write` does record is the plain mark: it adds `a5` to a song that fits one
+page, takes the mark off a song that no longer does (a song that now spills onto
+a second page loses `a5` and is listed with the `a5x2` hint), and narrows a
+hand-written `a5x2` back to `a5` once the song has been tightened.
+
 Fitting is not the same as being *used*: a song marked `a5x2` is a song the
 camp booklet *could* carry on a spread, not one it does.
 
