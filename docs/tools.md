@@ -9,7 +9,7 @@ edit files; `checkpaper.py` does only when asked with `--write`.
 - [`checkkeys.py`](#checkkeyspy--keys) — `key={}` versus the chords actually
   written
 - [`checkpaper.py`](#checkpaperpy--paper-fit) — `pap={}` versus what actually
-  fits on a page
+  fits on a page, and how the books lay the pages out
 
 ## `checksongs.py` — metadata
 
@@ -215,38 +215,48 @@ anyway; the parenthetical is stripped before comparison.
 
 ## `checkpaper.py` — paper fit
 
-Every song is written for A4; a song is only usable in the A5 camp booklet if
-it *also* fits one A5 page, which usually takes tightening it by hand. The
-`pap={}` key records which sizes a song has been checked on, and this script
-both reports the flags and re-measures them.
+Every song is written for A4; a song is only usable in an A5 book if it *also*
+fits A5, which usually takes tightening it by hand. The `pap={}` key records
+which sizes a song has been checked on, and this script both reports the flags
+and re-measures them. `--layout` goes one step further and asks the books
+themselves where their songs came out.
 
 ```bash
 scripts/checkpaper.py                     # which songs are marked for which paper
 scripts/checkpaper.py --summary           # counts and the per-project check only
 scripts/checkpaper.py --measure a5        # typeset everything on A5; what really fits
 scripts/checkpaper.py --measure a5 --write  # ... and record the answer in the songs
+scripts/checkpaper.py --layout            # build every book; check where its songs landed
 ```
 
 | Option | Effect |
 |---|---|
 | `--summary` | counts and the project table, without the song lists |
 | `--measure PAPER` | typeset every song on `PAPER` and compare with the flags |
+| `--layout` | build every project and check the pages its songs came out on |
 | `--write` | with `--measure`: write the measured result into the song files |
-| `--keep` | with `--measure`: keep the probe build directory for inspection |
-| `-v` | with `--measure`: echo LuaLaTeX's errors |
+| `--keep` | keep the probe build directories for inspection |
+| `-v` | echo LuaLaTeX's errors |
 | `--strict` | exit non-zero on any disagreement |
 
 ### What `pap={}` means
 
-`pap={a4,a5}` says the song fits **one page** of each size listed. Every size a
-song is known to fit is written down, so **no key means none of them** — the
-state of a song too long even for one A4 page, and of a song nobody has
-measured yet. There is no second spelling of that: `--write` takes the key out
-rather than writing an empty one. The build says so on every paper, which is
-what surfaces an unmeasured song.
+`pap={a4,a5}` says the song fits **one page** of each size listed;
+`pap={a5x2}` says it fits **two facing pages** of A5 — a spread, which is read
+and played through without turning the page. Every size a song is known to fit
+is written down, so **no key means none of them** — the state of a song too
+long even for one A4 page, and of a song nobody has measured yet. There is no
+second spelling of that: `--write` takes the key out rather than writing an
+empty one. The build says so on every paper, which is what surfaces an
+unmeasured song.
 
-Fitting is not the same as being *used*: the two camp songs that spill onto a
-second A5 page are in the booklet regardless, and carry no `pap`.
+Only A5 has the `x2` spelling, because only its classes are two-sided.
+`velkyzpevnik` is one-sided `article`, so nothing there puts the second page of
+a song opposite the first, and a song needing two A4 pages still fits nothing —
+which is what keeps the A4 build listing it.
+
+Fitting is not the same as being *used*: a song marked `a5x2` is a song the
+camp booklet *could* carry on a spread, not one it does.
 
 Each `--measure` run only records the paper it measured, so a new song wants
 both (`--measure a4 --write`, then `--measure a5 --write`) before its key is
@@ -286,3 +296,58 @@ no LilyPond runs.
 It is a measurement, not an opinion: run against the 58 songs of the 2025 and
 2026 camp books it reproduces those PDFs page for page, including the two songs
 that take two pages there.
+
+### Lines that do not fit either
+
+A song line too wide for the column is not an error — TeX breaks it like any
+other paragraph and sets the tail on a second line, with the chords still over
+the words they belong to and the shape of the verse gone. Nothing is logged: an
+overfull box only happens where TeX could not break at all.
+
+So the probe asks TeX directly. `\SB@par`, which songs.sty ends every song line
+with, is patched to look at `\prevgraf` — the number of lines the paragraph
+just came out as — and to write down any line that came out as more than one.
+A song with such a line **does not fit that paper**, however few pages it takes,
+and `--write` takes the mark off. Two songs on A4 and 55 on A5 are in that
+state today.
+
+The report names the line: chorus lines are counted from the start of the
+chorus rather than of the file, because `\insertchorus` replays the chorus from
+its own captured source (see [internals.md](internals.md#source-capture)), which
+is also why one wide chorus line is reported once however often it is printed.
+
+The patch reports itself into the same file, so a `songs.sty` whose `\SB@par`
+has changed shape fails the run instead of quietly measuring nothing.
+
+### What `--layout` checks
+
+Page counts say what a song needs; they do not say what the book gave it.
+`--layout` builds every project the way its own `build.sh` does — one pass, in a
+temporary directory, with no index files, which moves no song because the
+hardback puts its indexes last and the camp booklet holds its front matter to
+the two pages the class checks for itself — and then reads the book back:
+
+- **A song on two pages has to sit on a spread.** `songs.sty` already arranges
+  that in a two-sided book: it will not start a two-page song on a right-hand
+  page. So this is a check that the arrangement held, not a demand.
+- **No blank page between songs.** That is the price of the arrangement: when a
+  two-page song comes up on a right-hand page, the package pushes it over and
+  leaves the page behind empty. Nothing in the build says so, and the fix is
+  never in the song — it is to move a one-page song earlier or later.
+- **A song over two pages** is reported for information: no ordering of the book
+  can spare it a page turn.
+
+Two numbers have to be tied together for that, and neither is in the PDF text.
+The page a song starts on comes from the index data file, in the page numbers
+the book prints; which *sheet* that is does not follow from it, because a book
+with a cover restarts the counter at its first song. So the run also records the
+page counter of every sheet as it ships, in order, which pins the two together —
+and the printed page style is forced back to plain numbers first, so a front
+matter counted in roman numerals or letters cannot hide the number.
+
+A song's own page count comes from the `--measure` probe rather than from the
+book, since a book cannot say where a song stopped and its blank page began.
+`--layout` therefore measures every paper its projects use before it starts.
+
+It reproduces the real books: the 2025 camp booklet's two-page songs come out on
+sheets 10–11 and 30–31, which is where they are in `tabor2025.pdf`.

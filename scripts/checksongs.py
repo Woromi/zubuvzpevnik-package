@@ -53,8 +53,10 @@ KNOWN_LANGS = {
     "italian", "polish", "hungarian", "latin", "quenya",
 }
 
-# Paper sizes pap={} may name; the same list drives scripts/checkpaper.py.
-KNOWN_PAPERS = {"a4", "a5"}
+# Paper sizes pap={} may name; the same list drives scripts/checkpaper.py. The
+# x2 suffix means two facing pages of that size, which only a two-sided book can
+# promise, so a4 -- typeset by a one-sided class -- has no x2 spelling.
+KNOWN_PAPERS = {"a4", "a5", "a5x2"}
 
 # Fields shown (in this order) in --csv output and the completeness table.
 ALL_FIELDS = ["by", "lang", "key", "tem", "tun", "ori", "chr", "src", "pap"]

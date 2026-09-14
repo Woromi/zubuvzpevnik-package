@@ -2,16 +2,15 @@
 """Report which paper sizes each song fits on, and measure it by typesetting.
 
 The pap={} song key names the sizes a song has been checked on; a song without
-one counts as A4 only, which is where every song started. Reading the flags is
-the default; --measure typesets the whole database on one paper and says which
-songs really fit a single page. Read-only unless --write is given.
+one is not known to fit anything. Reading the flags is the default; --measure
+typesets the whole database on one paper and says what really fits, and
+--layout builds the books themselves and says whether the pages came out the
+way somebody playing from them needs. Read-only unless --write is given.
 
 Usage: scripts/checkpaper.py [options] [PATH ...]   (--help for the options)
-Exit status: 0 = clean, 1 = a flag disagrees with the measurement, 2 = nothing found.
+Exit status: 0 = clean, 1 = a flag or a book disagrees with the measurement,
+2 = nothing found.
 """
-
-# TODO: Not only it should check if it fits the page, but it should also check if all lines fit on one line (no auto line break). 
-# TODO: For the songs that do not fit just one page, it should be possible to make them fit on two pages on the A5 songbook, but then it should also check that those 2 pages are always next to each other (so that it is not necessary to turn the page when playing the song) and that there are no empty pages before or the song
 
 import argparse
 import os
@@ -33,12 +32,61 @@ CLASS_PAPER = {"velkyzpevnik": "a4", "taborovyzpevnik": "a5", "malyzpevnik": "a5
 PAPER_CLASS = {"a4": "velkyzpevnik", "a5": "taborovyzpevnik"}
 # What every project passes; the probe has to match to measure the real layout.
 CLASS_OPTIONS = "chorded, onesongcolumn, noshading"
+# Classes whose book opens on a spread -- page 2 faces 3, 4 faces 5 -- so a song
+# on two pages is playable without a page turn only when it starts on an even
+# one. songs.sty already places it that way where it can; --layout says at what
+# cost. See docs/tools.md.
+SPREAD_CLASSES = {"taborovyzpevnik", "malyzpevnik"}
+# pap={a5x2}: fits two facing pages of that paper rather than one. The same
+# spelling is in checksongs.py's KNOWN_PAPERS and in feature/metadata.cfg. Only
+# a paper whose class is two-sided can promise the two pages face each other,
+# so a4 has no such mark and a song needing two A4 pages still fits nothing.
+SPREAD_SUFFIX = "x2"
+SPREAD_PAPERS = {CLASS_PAPER[cls] for cls in SPREAD_CLASSES}
 
 DOCCLASS_RE = re.compile(r"\\documentclass\s*(?:\[[^\]]*\])?\s*\{([a-zA-Z]+)\}")
 INPUT_RE = re.compile(r"\\input\{([^}]*)\}")
+SONGS_ENV_RE = re.compile(r"\\begin\{songs\}")
 # songs.sty writes one \songlink target per song into the raw index file; the
-# page recorded just above it is where that song started. See docs/tools.md.
-SXD_LINK_RE = re.compile(r"^song\d+-(\d+)\.\d+$")
+# page recorded just above it is where that song started. The target names the
+# songs environment and the song's number within it, which restarts at 1 in
+# each environment. See docs/tools.md.
+SXD_LINK_RE = re.compile(r"^song(\d+)-(\d+)\.\d+$")
+
+# Goes into the probe's preamble. A song line too wide for the column is broken
+# like any other paragraph -- no overfull box, no warning, just a second line
+# under the first -- so the only witness is \prevgraf, the line count of the
+# paragraph songs.sty has just ended. The patch reports itself, so a songs.sty
+# that no longer matches cannot pass for a clean measurement.
+PROBE_PREAMBLE = r"""\makeatletter
+\newwrite\zub@probe@wrap
+\immediate\openout\zub@probe@wrap=\jobname.wrap\relax
+\newcommand\zub@probe@line{%
+  \ifnum\prevgraf>\@ne
+    \immediate\write\zub@probe@wrap{%
+      \thesongnum\space\ifSB@inchorus r\else v\fi\space\the\inputlineno}%
+  \fi}
+\xpatchcmd{\SB@par}{\endgraf}{\endgraf\zub@probe@line}%
+  {\immediate\write\zub@probe@wrap{ok}}%
+  {\immediate\write\zub@probe@wrap{patch failed}}
+\AtEndDocument{\immediate\closeout\zub@probe@wrap}
+\makeatother
+"""
+
+# Prepended to a project the way build.sh prepends its language filter. A book
+# with a cover restarts the page counter at the first song, so the printed page
+# number does not say which side of a sheet a song is on; this records the
+# counter of every sheet as it ships, in order, which pins the two together.
+# \pagenumbering keeps its reset but loses its style, so the page a song writes
+# into the index file is a number even in a book whose front matter counts in
+# letters or roman numerals. Neither touches the page the songs are set on.
+PROJECT_PREAMBLE = (
+    r"\makeatletter\newwrite\zub@probe@pages"
+    r"\immediate\openout\zub@probe@pages=\jobname.pagemap\relax"
+    r"\AddToHook{shipout/before}{\immediate\write\zub@probe@pages{\the\c@page}}"
+    r"\AtBeginDocument{\gdef\thepage{\the\c@page}"
+    r"\renewcommand\pagenumbering[1]{\global\c@page\@ne\gdef\thepage{\the\c@page}}}"
+    r"\makeatother")
 
 
 def declared(info):
@@ -50,16 +98,39 @@ def declared(info):
     return [p.strip().lower() for p in info["keys"].get("pap", "").split(",") if p.strip()]
 
 
+def claim(papers, paper):
+    """Pages a pap key claims on one paper: 1, 2 facing ones, or 0 for none."""
+    if paper in papers:
+        return 1
+    if paper + SPREAD_SUFFIX in papers:
+        return 2
+    return 0
+
+
+def mark(paper, pages):
+    """The pap entry for a page count, or None for a song that fits neither one
+    page of this paper nor a spread of two."""
+    if pages == 2 and paper in SPREAD_PAPERS:
+        return paper + SPREAD_SUFFIX
+    return paper if pages == 1 else None
+
+
 def project_files(repo_root):
-    """Every project .tex, as (path, paper, [song input names])."""
+    """Every project .tex, as (path, class, paper, [[song input names] per songs
+    environment]). A project may open several -- one per album in the Ayreon
+    book -- and songs.sty numbers the songs of each from 1 again, so the index
+    file only says which page a song is on once the environments are told
+    apart."""
     out = []
     for tex in sorted((repo_root / "projects").rglob("*.tex")):
         text = strip_comments(tex.read_text(encoding="utf-8", errors="replace"))
         m = DOCCLASS_RE.search(text)
         if not m:
             continue
-        songs = [s.strip().removesuffix(".tex") for s in INPUT_RE.findall(text)]
-        out.append((tex, CLASS_PAPER.get(m.group(1)), songs))
+        groups = [[s.strip().removesuffix(".tex")
+                   for s in INPUT_RE.findall(chunk.split("\\end{songs}")[0])]
+                  for chunk in SONGS_ENV_RE.split(text)[1:]]
+        out.append((tex, m.group(1), CLASS_PAPER.get(m.group(1)), groups))
     return out
 
 
@@ -72,6 +143,7 @@ def write_probe(builddir, paper, names):
     body = "\n".join(f"    \\input{{{n}}}" for n in names)
     (builddir / "paperprobe.tex").write_text(
         f"\\documentclass[{CLASS_OPTIONS}]{{{PAPER_CLASS[paper]}}}\n"
+        f"{PROBE_PREAMBLE}"
         "\\title{Paper probe}\n\\author{checkpaper.py}\n"
         "\\begin{document}\n\\pagestyle{empty}\n"
         f"\\begin{{songs}}{{obsah}}\n{body}\n\\end{{songs}}\n"
@@ -79,14 +151,34 @@ def write_probe(builddir, paper, names):
 
 
 def read_sxd(path):
-    """Ordinal -> starting page, from songs.sty's raw index data file."""
+    """(environment, ordinal) -> starting page, from songs.sty's raw index."""
     starts = {}
     lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
     for i, line in enumerate(lines):
         m = SXD_LINK_RE.match(line.strip())
         if m and i and lines[i - 1].strip().isdigit():
-            starts[int(m.group(1))] = int(lines[i - 1].strip())
+            starts[int(m.group(1)), int(m.group(2))] = int(lines[i - 1].strip())
     return starts
+
+
+def read_wraps(path):
+    """Ordinal -> [(part, line)] for every song line the probe had to break.
+
+    A chorus is replayed at each \\insertchorus and re-read from its own stored
+    source, so it reports its lines once per printing and numbers them from the
+    start of the chorus; identical records are therefore one broken line."""
+    if not path.exists():
+        raise RuntimeError("the probe wrote no line report; see PROBE_PREAMBLE")
+    lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+    if not lines or lines[0].strip() != "ok":
+        raise RuntimeError("the probe could not patch songs.sty's \\SB@par, so no "
+                           "line ever got checked for width; see PROBE_PREAMBLE")
+    out = {}
+    for line in lines[1:]:
+        fields = line.split()
+        if len(fields) == 3 and fields[0].isdigit() and fields[2].isdigit():
+            out.setdefault(int(fields[0]), set()).add((fields[1], int(fields[2])))
+    return {ordinal: sorted(found) for ordinal, found in out.items()}
 
 
 def nonempty_pages(pdf):
@@ -98,61 +190,126 @@ def nonempty_pages(pdf):
     return [bool(page.strip()) for page in out.stdout.split("\f")[:-1]]
 
 
+def song_spans(files, repo_root):
+    """(input name, first ordinal, ordinal after it) per file, in build order.
+    A file may hold more than one \\beginsong, so the ordinals walk per file."""
+    spans, ordinal = [], 1
+    for f in files:
+        n = max(1, parse_song(f)["n_begin"])
+        spans.append((input_name(f, repo_root), ordinal, ordinal + n))
+        ordinal += n
+    return spans
+
+
+def run_lualatex(builddir, env, args, job, verbose):
+    """Run one LuaLaTeX pass and insist on a PDF; returns its path."""
+    run = subprocess.run(["lualatex", "-shell-escape", "-interaction=nonstopmode"] + args,
+                         cwd=builddir, env=env, capture_output=True, text=True)
+    log, pdf = builddir / f"{job}.log", builddir / f"{job}.pdf"
+    if not pdf.exists():
+        tail = "\n".join(log.read_text(errors="replace").splitlines()[-25:]) \
+            if log.exists() else run.stdout[-2000:]
+        raise RuntimeError(f"lualatex produced no PDF:\n{tail}")
+    if verbose:
+        for line in log.read_text(errors="replace").splitlines():
+            if line.startswith("!"):
+                print(f"  lualatex: {line}", file=sys.stderr)
+    return pdf
+
+
+def build_env(repo_root, builddir, extra=None):
+    """A build directory that shares the repo's LilyPond cache and images, and
+    the environment to typeset in it. Sharing tmp-ly is what makes a re-measure
+    cost no lilypond runs."""
+    (repo_root / "tmp-ly").mkdir(exist_ok=True)
+    (builddir / "tmp-ly").symlink_to(repo_root / "tmp-ly")
+    if (repo_root / "img").is_dir():
+        (builddir / "img").symlink_to(repo_root / "img")
+    env = dict(os.environ)
+    env["TEXINPUTS"] = os.pathsep.join(
+        [".", *(str(p) for p in extra or []), str(repo_root / "zubuvzpevnik"),
+         str(repo_root / "songs" / "chords"),
+         str(repo_root / "songs" / "tinwhistle"), env.get("TEXINPUTS", "")])
+    env["max_print_line"] = "120"
+    return env
+
+
 def measure(repo_root, paper, files, keep=False, verbose=False):
-    """Typeset every song on `paper`; return {input name: pages it occupies}."""
-    names = [input_name(f, repo_root) for f in files]
-    if any(n is None for n in names):
+    """Typeset every song on `paper`; return {input name: pages it occupies} and
+    {input name: the lines that had to be broken to fit the column}."""
+    spans = song_spans(files, repo_root)
+    if any(name is None for name, _, _ in spans):
         raise RuntimeError("--measure only handles songs under songs/chords or songs/tinwhistle")
 
     builddir = Path(tempfile.mkdtemp(prefix="checkpaper-"))
     try:
-        # Share the repo's LilyPond cache: a re-measure then costs no lilypond runs.
-        (repo_root / "tmp-ly").mkdir(exist_ok=True)
-        (builddir / "tmp-ly").symlink_to(repo_root / "tmp-ly")
-        if (repo_root / "img").is_dir():
-            (builddir / "img").symlink_to(repo_root / "img")
-        write_probe(builddir, paper, names)
-
-        env = dict(os.environ)
-        env["TEXINPUTS"] = os.pathsep.join(
-            [".", str(repo_root / "zubuvzpevnik"), str(repo_root / "songs" / "chords"),
-             str(repo_root / "songs" / "tinwhistle"), env.get("TEXINPUTS", "")])
-        env["max_print_line"] = "120"
-        print(f"Typesetting {len(names)} songs on {paper}...", file=sys.stderr)
-        run = subprocess.run(
-            ["lualatex", "-shell-escape", "-interaction=nonstopmode", "paperprobe.tex"],
-            cwd=builddir, env=env, capture_output=True, text=True)
-        log = (builddir / "paperprobe.log")
-        if not (builddir / "paperprobe.pdf").exists():
-            tail = "\n".join((log.read_text(errors="replace").splitlines())[-25:]) if log.exists() else run.stdout[-2000:]
-            raise RuntimeError(f"lualatex produced no PDF:\n{tail}")
-        if verbose:
-            for line in log.read_text(errors="replace").splitlines():
-                if line.startswith("!"):
-                    print(f"  lualatex: {line}", file=sys.stderr)
+        env = build_env(repo_root, builddir)
+        write_probe(builddir, paper, [name for name, _, _ in spans])
+        print(f"Typesetting {len(spans)} songs on {paper}...", file=sys.stderr)
+        pdf = run_lualatex(builddir, env, ["paperprobe.tex"], "paperprobe", verbose)
 
         starts = read_sxd(builddir / "obsah.sxd")
-        filled = nonempty_pages(builddir / "paperprobe.pdf")
+        filled = nonempty_pages(pdf)
+        broken = read_wraps(builddir / "paperprobe.wrap")
 
-        # A file may hold more than one \beginsong, so walk ordinals per file.
-        pages, ordinal = {}, 1
-        spans = []
-        for f, name in zip(files, names):
-            n = max(1, parse_song(f)["n_begin"])
-            spans.append((name, ordinal, ordinal + n))
-            ordinal += n
-        total = len(filled)
+        pages, wraps, total = {}, {}, len(filled)
         for i, (name, first, nxt) in enumerate(spans):
-            if first not in starts:
+            if (1, first) not in starts:
                 continue                      # song never reached the PDF
-            start = starts[first]
-            end = starts.get(nxt, total + 1) if i + 1 < len(spans) else total + 1
+            start = starts[1, first]          # the probe opens one songs environment
+            end = starts.get((1, nxt), total + 1) if i + 1 < len(spans) else total + 1
             # Trailing blanks belong to the forced break, not to the song.
             pages[name] = sum(1 for p in range(start, end) if filled[p - 1])
-        return pages
+            wraps[name] = sorted({w for o in range(first, nxt) for w in broken.get(o, ())})
+        return pages, wraps
     finally:
         if keep:
             print(f"Probe kept in {builddir}", file=sys.stderr)
+        else:
+            shutil.rmtree(builddir, ignore_errors=True)
+
+
+def page_offset(pagemap):
+    """Sheet number minus printed page number, over the last run of pages the
+    counter numbered without restarting -- the run every song is in. The books
+    with a cover restart at 1 for the first song, so the printed number on its
+    own does not say which side of a sheet the song is on."""
+    i = len(pagemap) - 1
+    while i > 0 and pagemap[i - 1] == pagemap[i] - 1:
+        i -= 1
+    return i + 1 - pagemap[i]
+
+
+def build_project(repo_root, tex, keep=False, verbose=False):
+    """Typeset one project as its own build.sh does, and read the book back as
+    ({(songs environment, ordinal): page the song starts on}, sheet offset,
+    sheets shipped).
+
+    One pass, with no index files to read, so the indexes come out empty. That
+    moves no song: the hardback puts its indexes last, and the camp booklet
+    holds its front matter to the two pages the class checks for itself."""
+    builddir = Path(tempfile.mkdtemp(prefix="checkpaper-"))
+    try:
+        env = build_env(repo_root, builddir, extra=[tex.parent])
+        job = tex.stem
+        print(f"Typesetting {os.path.relpath(tex, repo_root)}...", file=sys.stderr)
+        run_lualatex(builddir, env,
+                     [f"--jobname={job}", PROJECT_PREAMBLE + f"\\input{{{tex}}}"],
+                     job, verbose)
+
+        sheets = builddir / f"{job}.pagemap"
+        pagemap = [int(n) for n in sheets.read_text().split() if n.isdigit()] \
+            if sheets.exists() else []
+        if not pagemap:
+            raise RuntimeError(f"{job} recorded no sheet, so nothing says which "
+                               "page a song is on; see PROJECT_PREAMBLE")
+        starts = {}
+        for sxd in sorted(builddir.glob("*.sxd")):
+            starts.update(read_sxd(sxd))
+        return starts, page_offset(pagemap), len(pagemap)
+    finally:
+        if keep:
+            print(f"Build kept in {builddir}", file=sys.stderr)
         else:
             shutil.rmtree(builddir, ignore_errors=True)
 
@@ -215,6 +372,27 @@ def bar(n, total):
     return "#" * round(20 * n / total) if total else ""
 
 
+def plural(n, word):
+    return f"{n} {word}" + ("" if n == 1 else "s")
+
+
+def wrap_note(broken, limit=3):
+    """Where the lines that had to be broken are. A chorus is read back from its
+    own stored source, so its lines count from the start of the chorus."""
+    where = [f"chorus line {n}" if part == "r" else f"line {n}"
+             for part, n in broken[:limit]]
+    if len(broken) > limit:
+        where.append(f"and {len(broken) - limit} more")
+    return ", ".join(where)
+
+
+def measured_as(n, broken):
+    """What the measurement found, as the report puts it."""
+    if not broken:
+        return plural(n, "page")
+    return f"{plural(n, 'page')}, {plural(len(broken), 'line')} too wide: {wrap_note(broken)}"
+
+
 def report_flags(parsed, repo_root, summary_only):
     groups = {}
     for f, info in parsed:
@@ -254,12 +432,14 @@ def report_projects(parsed, repo_root):
             by_name[name] = info
     print("\nProjects:")
     unchecked = 0
-    for tex, paper, songs in project_files(repo_root):
+    for tex, _, paper, groups in project_files(repo_root):
         rel = os.path.relpath(tex, repo_root)
+        songs = [s for group in groups for s in group]
         if paper is None:
             print(f"  {rel}: unknown class, skipped")
             continue
-        missing = [s for s in songs if s in by_name and paper not in declared(by_name[s])]
+        missing = [s for s in songs
+                   if s in by_name and not claim(declared(by_name[s]), paper)]
         unknown = [s for s in songs if s not in by_name]
         note = f"{len(songs)} songs, {len(songs) - len(missing) - len(unknown)} marked {paper}"
         print(f"  {rel} [{paper}]: {note}")
@@ -271,48 +451,132 @@ def report_projects(parsed, repo_root):
     return unchecked
 
 
-def report_measured(parsed, repo_root, paper, pages, write):
-    """Measured page counts against the flags. One page = fits."""
+def report_measured(parsed, repo_root, paper, pages, wraps, write):
+    """Measured page counts against the flags. A song fits a paper when it takes
+    one page of it, or two facing ones, and no line of it had to be broken."""
     print(f"\nMeasured on {paper} ({PAPER_CLASS[paper]}):")
-    add, drop, missing = [], [], []
+    changes, missing = [], []
     for f, info in sorted(parsed, key=lambda r: str(r[0])):
-        name = input_name(f, repo_root)
-        n = pages.get(name)
-        papers = declared(info)
+        n = pages.get(input_name(f, repo_root))
         if n is None:
             missing.append((f, info))
             continue
-        fits, flagged = n == 1, paper in papers
-        if fits and not flagged:
-            add.append((f, info, n))
-        elif not fits and flagged:
-            drop.append((f, info, n))
+        broken = wraps.get(input_name(f, repo_root), [])
+        now = None if broken else mark(paper, n)
+        was = mark(paper, claim(declared(info), paper))
+        if now != was:
+            changes.append((f, info, was, now, n, broken))
 
-    for label, rows, verb in (
-            (f"Fits on one {paper} page but is not marked {paper}", add, "add"),
-            (f"Marked {paper} but needs more than one page", drop, "remove")):
+    add = [c for c in changes if c[2] is None]
+    drop = [c for c in changes if c[3] is None]
+    swap = [c for c in changes if c[2] and c[3]]
+    for label, rows, sign in (
+            (f"Fits {paper} but is not marked for it", add, "+"),
+            (f"Marked for {paper} but does not fit", drop, "-"),
+            (f"Marked for {paper}, but fits it differently", swap, "~")):
         if not rows:
             continue
         print(f"\n  {label} ({len(rows)}):")
-        for f, info, n in rows:
-            rel = os.path.relpath(f, repo_root)
-            print(f"    {'+' if verb == 'add' else '-'} {rel}  ({n} page{'s' if n != 1 else ''})")
+        for f, _, was, now, n, broken in rows:
+            key = f"{was} -> {now}" if was and now else (now or was)
+            print(f"    {sign} {os.path.relpath(f, repo_root)}  {key}  ({measured_as(n, broken)})")
     if missing:
         print(f"\n  Not measured ({len(missing)}): " +
               ", ".join(os.path.relpath(f, repo_root) for f, _ in missing))
 
-    fitting = sum(1 for n in pages.values() if n == 1)
+    fits = [mark(paper, n) for name, n in pages.items() if not wraps.get(name)]
+    wide = sum(1 for name in pages if wraps.get(name))
+    spread_note = (f" and {fits.count(paper + SPREAD_SUFFIX)} fit two facing ones"
+                   if paper in SPREAD_PAPERS else "")
     print(f"\n{'=' * 60}")
-    print(f"{fitting}/{len(pages)} songs fit a single {paper} page; "
-          f"{len(add)} to add, {len(drop)} to remove.")
+    print(f"{fits.count(paper)}/{len(pages)} songs fit one {paper} page{spread_note}; "
+          f"{len(add)} to add, {len(drop)} to remove, {len(swap)} to change.")
+    if wide:
+        print(f"{plural(wide, 'song')} have a line too wide for {paper}, which is "
+              "what stops them fitting it.")
 
     if write:
-        for f, info, _ in add:
-            set_pap(f, sorted(set(declared(info)) | {paper}))
-        for f, info, _ in drop:
-            set_pap(f, [p for p in declared(info) if p != paper])
-        print(f"Wrote the pap key in {len(add) + len(drop)} file(s).")
-    return len(add) + len(drop)
+        for f, info, _, now, _, _ in changes:
+            others = [p for p in declared(info) if p not in (paper, paper + SPREAD_SUFFIX)]
+            set_pap(f, sorted(others + ([now] if now else [])))
+        print(f"Wrote the pap key in {len(changes)} file(s).")
+    return len(changes)
+
+
+def report_layout(parsed, repo_root, measured, keep=False, verbose=False):
+    """Build each project and check the pages its songs really landed on.
+
+    Two things somebody playing from the book notices and a page count does not:
+    a song on two pages that a page turn falls between, and a blank page left
+    in the middle of the book to keep one from doing so."""
+    by_name = {}
+    for f, info in parsed:
+        name = input_name(f, repo_root)
+        if name:
+            by_name[name] = info
+    print("\nBook layout:")
+    problems = 0
+    for tex, cls, paper, groups in project_files(repo_root):
+        rel = os.path.relpath(tex, repo_root)
+        if paper is None:
+            print(f"  {rel}: unknown class, skipped")
+            continue
+        pages = measured[paper][0]
+        starts, offset, sheets = build_project(repo_root, tex, keep, verbose)
+        spread = cls in SPREAD_CLASSES
+
+        # The keys songs.sty hands out, in the order the project inputs them.
+        order = []
+        for env, group in enumerate(groups, 1):
+            ordinal = 1
+            for name in group:
+                order.append((name, (env, ordinal)))
+                ordinal += max(1, by_name[name]["n_begin"]) if name in by_name else 1
+
+        notes, used, on_spread, longer = [], [], 0, 0
+        for i, (name, key) in enumerate(order):
+            start, n = starts.get(key), pages.get(name)
+            if start is None or n is None:
+                notes.append(f"· {name} was not measured, so its pages are unknown")
+                continue
+            used += [start, start + n - 1]
+            # Where the next song of the same environment begins; anything
+            # between two environments is a section page, not a song's doing.
+            after = order[i + 1] if i + 1 < len(order) else None
+            nxt = starts.get(after[1]) if after and after[1][0] == key[0] else None
+            nxt = start + n if nxt is None else nxt
+            if n == 2:
+                on_spread += 1
+                if not spread:
+                    notes.append(f"· {name} takes 2 pages, and this book is not "
+                                 "two-sided, so it cannot lay them side by side")
+                elif (start + offset) % 2:
+                    notes.append(f"⚠ {name} takes pages {start} and {start + 1}, "
+                                 "which a page turn falls between")
+                    problems += 1
+            elif n > 2:
+                longer += 1
+                notes.append(f"· {name} takes {n} pages, so no ordering of the "
+                             "book can spare it a page turn")
+            if nxt < start + n:
+                notes.append(f"⚠ {name} was measured at {plural(n, 'page')} but the "
+                             f"book gives it {plural(nxt - start, 'page')}")
+                problems += 1
+            for blank in range(start + n, nxt):
+                notes.append(f"⚠ page {blank} is blank, before {after[0]}")
+                problems += 1
+
+        where = f"pages {min(used)}-{max(used)} of {sheets}" if used else "no pages"
+        pair = "on a spread" if spread else "on two pages"
+        counts = "".join([f", {on_spread} {pair}" if on_spread else "",
+                          f", {longer} over two pages" if longer else ""])
+        print(f"  {rel} [{paper}{', spreads' if spread else ''}]: "
+              f"{len(order)} songs on {where}{counts}")
+        for note in notes:
+            print(f"      {note}")
+        if not notes:
+            print("      ✓ no page turn inside a song, no blank page between them")
+    return problems
 
 
 def main():
@@ -321,15 +585,19 @@ def main():
     ap.add_argument("--summary", action="store_true", help="counts only, no song lists")
     ap.add_argument("--measure", metavar="PAPER", choices=sorted(PAPER_CLASS),
                     help="typeset every song on PAPER and compare with the flags")
+    ap.add_argument("--layout", action="store_true",
+                    help="build every project and check where its songs landed")
     ap.add_argument("--write", action="store_true",
                     help="with --measure: write the measured result into the songs")
-    ap.add_argument("--keep", action="store_true", help="with --measure: keep the probe build")
+    ap.add_argument("--keep", action="store_true", help="keep the probe builds")
     ap.add_argument("-v", "--verbose", action="store_true", help="show lualatex errors")
     ap.add_argument("--strict", action="store_true", help="exit non-zero on any disagreement")
     args = ap.parse_args()
 
     if args.write and not args.measure:
         ap.error("--write only makes sense with --measure")
+    if args.layout and args.paths:
+        ap.error("--layout measures whole books, so it takes no paths")
 
     repo_root = Path(__file__).resolve().parent.parent
     scan = args.paths if args.paths else [repo_root / "songs"]
@@ -340,10 +608,24 @@ def main():
         return 2
     parsed = [(f, parse_song(f)) for f in files]
 
-    if args.measure:
-        pages = measure(repo_root, args.measure, files, keep=args.keep, verbose=args.verbose)
-        disagreements = report_measured(parsed, repo_root, args.measure, pages, args.write)
-        return 1 if (args.strict and disagreements and not args.write) else 0
+    if args.measure or args.layout:
+        # A book needs the page count of every song it holds, so --layout
+        # measures each paper its projects are typeset on.
+        papers = {args.measure} if args.measure else set()
+        if args.layout:
+            papers |= {p for _, _, p, _ in project_files(repo_root) if p}
+        measured = {p: measure(repo_root, p, files, keep=args.keep, verbose=args.verbose)
+                    for p in sorted(papers)}
+        disagreements = problems = 0
+        if args.measure:
+            pages, wraps = measured[args.measure]
+            disagreements = report_measured(parsed, repo_root, args.measure,
+                                            pages, wraps, args.write)
+            if args.write:
+                disagreements = 0
+        if args.layout:
+            problems = report_layout(parsed, repo_root, measured, args.keep, args.verbose)
+        return 1 if (args.strict and (disagreements or problems)) else 0
 
     report_flags(parsed, repo_root, args.summary)
     unchecked = report_projects(parsed, repo_root)
