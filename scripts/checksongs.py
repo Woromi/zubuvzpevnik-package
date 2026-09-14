@@ -38,7 +38,7 @@ ASCII_FLAT_CHORD = re.compile(r"\\\[([A-H])b")
 
 # --- What counts as a song key ---------------------------------------------
 # This repo's keys plus the songs built-ins; anything else is a possible typo.
-CUSTOM_KEYS = {"lang", "key", "tun", "tem", "ori", "chr", "src"}
+CUSTOM_KEYS = {"lang", "key", "tun", "tem", "ori", "chr", "src", "pap"}
 BUILTIN_KEYS = {"by", "cr", "li", "index", "ititle"}
 KNOWN_KEYS = CUSTOM_KEYS | BUILTIN_KEYS
 
@@ -53,8 +53,11 @@ KNOWN_LANGS = {
     "italian", "polish", "hungarian", "latin", "quenya",
 }
 
+# Paper sizes pap={} may name; the same list drives scripts/checkpaper.py.
+KNOWN_PAPERS = {"a4", "a5"}
+
 # Fields shown (in this order) in --csv output and the completeness table.
-ALL_FIELDS = ["by", "lang", "key", "tem", "tun", "ori", "chr", "src"]
+ALL_FIELDS = ["by", "lang", "key", "tem", "tun", "ori", "chr", "src", "pap"]
 
 
 class Severity:
@@ -307,6 +310,14 @@ def check_song(path, info):
     lang = keys.get("lang", "").strip()
     if lang and lang not in KNOWN_LANGS:
         issues.append((Severity.WARN, f"unusual language '{lang}' (typo? add to KNOWN_LANGS if intended)"))
+
+    # A paper the classes do not name can never match, so the song silently
+    # counts as fitting nothing; see checkpaper.py.
+    bad_paper = [p for p in (q.strip() for q in keys.get("pap", "").split(","))
+                 if p and p.lower() not in KNOWN_PAPERS]
+    if bad_paper:
+        issues.append((Severity.WARN, "unknown paper in pap: " + ", ".join(bad_paper)
+                       + " (known: " + ", ".join(sorted(KNOWN_PAPERS)) + ")"))
 
     issues.extend(check_rendering(info))
     return issues

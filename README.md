@@ -62,8 +62,9 @@ Keys go in the optional `[...]` argument of `\beginsong`. All are optional excep
 | `ori` | Original song (for covers / translations). |
 | `chr` | Chords used, shown above the song (e.g. `\gtab` diagrams). |
 | `src` | Source URL (typeset as a link). |
+| `pap` | Paper sizes the song fits **one page** of, e.g. `a4,a5`. Prints nothing. No key means none; see below. |
 
-`key`/`tun`/`tem`/`ori`/`chr`/`src` are defined in `feature/metadata.cfg`; `lang` in `feature/lokalizace.cfg`. On large paper they are laid out in a box beside the title (see `\makeprelude`); on small paper they are omitted.
+`key`/`tun`/`tem`/`ori`/`chr`/`src`/`pap` are defined in `feature/metadata.cfg`; `lang` in `feature/lokalizace.cfg`. On large paper they are laid out in a box beside the title (see `\makeprelude`); on small paper they are omitted.
 
 ### Writing the `key`
 
@@ -216,6 +217,28 @@ The boolean `\iflargepaper` (true in the A4 class, false in the A5 booklet) driv
 | `\begin{narrowonlargepaper} … \end{...}` | On large paper, sets the content in a narrower (80 %) column; full width otherwise. |
 | `\narrowtextnote{…}` | A `\textnote` wrapped in `narrowonlargepaper`. |
 | `\narrowlilypondfile{…}` | A `\lilypondfile` wrapped in `narrowonlargepaper`. |
+
+### Which songs fit which paper
+
+Fitting A4 is not fitting A5, and the helpers above are how a song is tightened
+until it does. The `pap={}` key records the outcome: `pap={a4,a5}` means the
+song has been checked to fit **one page** of each. Every size a song is known to
+fit is written down, so no key means none of them — whether the song is too long
+for any page or nobody has measured it yet.
+
+No class declares which paper it is: `\zub@papername` is read off
+`\paperwidth`/`\paperheight` at `\begin{document}` and matched against the
+`\zub@paperis` lines in `zubuvzpevnik.sty`, so it always agrees with the paper
+option the class handed `\LoadClass`. Teaching the package a new size is one
+`\zub@paperis` line; a page size it does not know warns once and skips the
+per-song check.
+
+A song whose `pap` does not list the paper being typeset raises a package
+warning while the book builds, with no opt-out — so an A5 build lists the songs
+nobody has checked at that size.
+
+`scripts/checkpaper.py` reports the flags, and `--measure a5` re-derives them by
+actually typesetting every song; see [docs/tools.md](../docs/tools.md#checkpaperpy--paper-fit).
 
 ## Customization hooks
 

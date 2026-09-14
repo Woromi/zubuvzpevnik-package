@@ -21,7 +21,6 @@ outputfile=""
 verbose=0
 cleanup=0
 
-echo "Processing parameters..."
 while [ $# -gt 1 ]; do
     case "$1" in
         -i) indexFiles="$indexFiles $2"; shift 2 ;;
@@ -60,13 +59,64 @@ fi
 
 jobname="${outputfile:-$(basename "$texfile" .tex)}"
 
+# A LuaLaTeX log is ~2000 lines of which a handful are worth reading. Blocks
+# that open with one of these and run to the next blank line are surfaced; the
+# log hard-wraps them mid-word at max_print_line, so they are glued back
+# together. Font shape substitutions and hyphenat's htt banner are on every
+# build for reasons the repo already knows about, so they are counted, not
+# printed. -v prints the whole log instead. See docs/building.md.
+report_log() {
+    [ -f "$1" ] || return 0
+    awk '
+        function flush(   i, out) {
+            if (nblk) {
+                if (quiet) hidden++
+                # An error block is message plus TeX context lines, which are
+                # separate lines rather than one wrapped sentence.
+                else if (iserr) { for (i = 1; i <= nblk; i++) print "  " blk[i] }
+                else {
+                    out = ""
+                    for (i = 1; i <= nblk; i++) out = out blk[i]
+                    print "  " out
+                }
+            }
+            nblk = 0; inblk = 0; quiet = 0; iserr = 0
+        }
+        /^[[:space:]]*$/ { flush(); next }
+        /^Missing character:/ { flush(); miss[$0]++; next }
+        /^(! |LaTeX Warning|LaTeX Font Warning|(Package|Class|Module) [A-Za-z@]+ (Warning|Error|warning))/ {
+            flush()
+            inblk = 1
+            iserr = /^! /
+            quiet = (/^LaTeX Font Warning/ || /^Package hyphenat Warning/)
+        }
+        inblk {
+            line = $0
+            if (!iserr) sub(/^\([A-Za-z@]+\)[ ]*/, " ", line)
+            blk[++nblk] = line
+        }
+        END {
+            flush()
+            for (m in miss) print "  " m " [" miss[m] "x]"
+            if (hidden) printf "  (%d routine font/hyphenat notice(s) hidden; -v shows the whole log)\n", hidden
+        }
+    ' "$1"
+}
+
 # $1: 1 = show lualatex output, 0 = silent (but show the log tail on failure)
 run_lualatex() {
     if [ "$1" -eq 1 ]; then
         "${lualatex_cmd[@]}"
     elif ! "${lualatex_cmd[@]}" > /dev/null 2>&1; then
-        echo "lualatex failed, end of $jobname.log:"
-        tail -n 30 "$jobname.log"
+        echo "lualatex failed:"
+        # The error is usually far above the tail, which is a geometry dump.
+        found=$(report_log "$jobname.log")
+        if [ -n "$found" ]; then
+            printf '%s\n' "$found"
+        else
+            echo "  nothing matched; end of $jobname.log:"
+            tail -n 30 "$jobname.log"
+        fi
         exit 1
     fi
 }
@@ -77,11 +127,11 @@ if [ -n "$indexFiles" ] && ! locale -a 2>/dev/null | grep -Eiq '^cs_CZ(\.utf-?8)
     echo "         system default locale. On Debian/Ubuntu: sudo locale-gen cs_CZ.UTF-8"
 fi
 
-echo "First iteration of lualatex..."
+echo "Building songbook: $jobname..."
 run_lualatex "$verbose"
 
 if [ -z "$indexFiles" ]; then
-    echo "No index files specified, skipping index building."
+    [ "$verbose" -eq 1 ] && echo "No index files specified, skipping index building."
 else
     for indexFile in $indexFiles; do
         echo "Building index: $indexFile..."
@@ -93,9 +143,14 @@ else
     done
 
     # Intentionally quiet even with -v: its errors would just repeat the first pass
-    echo "Second iteration of lualatex..."
+    echo "Rebuilding songbook with the indexes..."
     run_lualatex 0
 fi
+
+# -v already showed everything; otherwise this is the only sight of a warning.
+[ "$verbose" -eq 1 ] || report_log "$jobname.log"
+pages=$(pdfinfo "$jobname.pdf" 2>/dev/null | awk '/^Pages:/{print $2}')
+echo "Finished: $jobname.pdf${pages:+ ($pages pages)}"
 
 if [ "$cleanup" -eq 1 ]; then
     echo "Cleaning build files, uninstalling packages..."

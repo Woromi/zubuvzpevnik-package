@@ -1,12 +1,15 @@
 # Developer tools
 
-Two read-only linters under `scripts/`. Neither edits files nor affects the
-build; both are conveniences for after adding songs and before a release.
+Three tools under `scripts/`. None of them affects the build; all are
+conveniences for after adding songs and before a release. The first two never
+edit files; `checkpaper.py` does only when asked with `--write`.
 
 - [`checksongs.py`](#checksongspy--metadata) — metadata and text that will not
   render
 - [`checkkeys.py`](#checkkeyspy--keys) — `key={}` versus the chords actually
   written
+- [`checkpaper.py`](#checkpaperpy--paper-fit) — `pap={}` versus what actually
+  fits on a page
 
 ## `checksongs.py` — metadata
 
@@ -35,10 +38,12 @@ deliberate cleanup pass, when you want the whole backlog to show up as failure.
 
 **Metadata.** The required `by` key; recommended keys per song kind (`lang`,
 `key`, `tem`, `tun` for chord songs, `key`/`tem` for instrumental tin-whistle
-ones); unknown keys, which are almost always typos; `lang` values outside the
-recognised set; and structural damage such as a missing `\endsong`. The tiers
-and the language list are constants at the top of the script — edit them when
-introducing a new language.
+ones — `pap` is deliberately not among them, since a song that fits nothing
+correctly has none); unknown keys, which are almost always typos; `lang` values outside the
+recognised set; `pap` values outside the paper sizes the classes know, which
+would silently match nothing; and structural damage such as a missing
+`\endsong`. The tiers, the language list and the paper list are constants at
+the top of the script — edit them when introducing a new language or paper.
 
 **Orphans.** Songs under `songs/` that no project `\input`s, and so appear in no
 songbook. Project files are comment-stripped first, so a song parked behind a
@@ -207,3 +212,77 @@ and their key is fixed by the tune's sharps and flats. Their `key` field reads
 `<song key> (<whistle> whistle)`, where the parenthetical names the whistle the
 tune is *playable on*, not the key. Pass such a file explicitly to analyse it
 anyway; the parenthetical is stripped before comparison.
+
+## `checkpaper.py` — paper fit
+
+Every song is written for A4; a song is only usable in the A5 camp booklet if
+it *also* fits one A5 page, which usually takes tightening it by hand. The
+`pap={}` key records which sizes a song has been checked on, and this script
+both reports the flags and re-measures them.
+
+```bash
+scripts/checkpaper.py                     # which songs are marked for which paper
+scripts/checkpaper.py --summary           # counts and the per-project check only
+scripts/checkpaper.py --measure a5        # typeset everything on A5; what really fits
+scripts/checkpaper.py --measure a5 --write  # ... and record the answer in the songs
+```
+
+| Option | Effect |
+|---|---|
+| `--summary` | counts and the project table, without the song lists |
+| `--measure PAPER` | typeset every song on `PAPER` and compare with the flags |
+| `--write` | with `--measure`: write the measured result into the song files |
+| `--keep` | with `--measure`: keep the probe build directory for inspection |
+| `-v` | with `--measure`: echo LuaLaTeX's errors |
+| `--strict` | exit non-zero on any disagreement |
+
+### What `pap={}` means
+
+`pap={a4,a5}` says the song fits **one page** of each size listed. Every size a
+song is known to fit is written down, so **no key means none of them** — the
+state of a song too long even for one A4 page, and of a song nobody has
+measured yet. There is no second spelling of that: `--write` takes the key out
+rather than writing an empty one. The build says so on every paper, which is
+what surfaces an unmeasured song.
+
+Fitting is not the same as being *used*: the two camp songs that spill onto a
+second A5 page are in the booklet regardless, and carry no `pap`.
+
+Each `--measure` run only records the paper it measured, so a new song wants
+both (`--measure a4 --write`, then `--measure a5 --write`) before its key is
+the whole answer.
+
+The paper a book is being typeset on is not declared anywhere — `zubuvzpevnik.sty`
+reads it off `\paperwidth`/`\paperheight` at `\begin{document}`, after
+`geometry` has had its say, and matches them against the `\zub@paperis` lines
+there. So the name cannot drift from the paper option the class passed to
+`\LoadClass`, and a new size needs one line in one place. A page that matches no
+line warns once and turns the per-song check off, since there is nothing to
+check against.
+
+Every song whose `pap` does not list the paper being typeset gets a LaTeX
+warning, with no way to opt out: building the camp book lists the songs nobody
+has checked at that size, and building the A4 book lists the three that need
+two pages there.
+
+### How `--measure` decides
+
+It typesets the whole database as one songbook, in the class for that paper and
+with the options the projects pass (`chorded, onesongcolumn, noshading`), so
+the measurement is the real layout — including the `\iflargepaper` branches a
+song uses to shorten itself on small paper.
+
+`\spenalty=-10000` starts every song on a fresh page, so no song can be
+lengthened or shortened by its neighbours and a subset measures the same as the
+whole. Song start pages come from the page numbers `songs` writes into the raw
+index file (`obsah.sxd`), and the probe sets `\pagestyle{empty}` so that the
+*blank* page a forced break sometimes leaves behind can be told apart from a
+page the song really spilled onto; blank pages are not counted against a song.
+
+The probe builds in a temporary directory with the repo's `tmp-ly` symlinked
+in, so it shares the LilyPond cache with the real builds and a re-measure costs
+no LilyPond runs.
+
+It is a measurement, not an opinion: run against the 58 songs of the 2025 and
+2026 camp books it reproduces those PDFs page for page, including the two songs
+that take two pages there.

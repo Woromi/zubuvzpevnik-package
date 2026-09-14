@@ -60,7 +60,7 @@ Options, passed through to `scripts/build.sh`:
 
 | Option | Effect |
 |---|---|
-| `-v` | verbose output |
+| `-v` | print the whole LuaLaTeX log instead of the filtered warnings |
 | `-i indexname` | build a specific index (repeat for several) |
 | `-l lang[,…]` | include only songs with those languages |
 | `-e lang[,…]` | exclude songs with those languages |
@@ -94,6 +94,42 @@ projects/velkyzpevnik/build.sh -l czech,slovak -o velkyzpevnikCz
 
 Two passes converge because both classes restart page numbering after the front
 matter, so the index's own length never shifts the song page numbers it records.
+
+#### What the build prints
+
+A LuaLaTeX pass over the songbook is about 2 000 lines of log, of which a
+handful matter, so the default build prints the steps and then only those:
+
+```
+Building songbook: tabor2025...
+Building index: obsah...
+Building index: obsahAutor...
+Rebuilding songbook with the indexes...
+  Package zubuvzpevnik Warning: Song 'Gandalfovy obchodní úspěchy' is not marked as fitting a5 paper; ...
+  (29 routine font/hyphenat notice(s) hidden; -v shows the whole log)
+Finished: tabor2025.pdf (36 pages)
+```
+
+Surfaced: `!` errors, `LaTeX`/`Package`/`Class`/`Module` warnings, and
+`Missing character` lines — the last deduplicated with a count, because those
+are exactly the characters LuaLaTeX drops from the PDF without failing
+([tools.md](tools.md#checksongspy--metadata)).
+
+Counted rather than printed: `LaTeX Font Warning`, which is Roboto Mono having
+no small-caps or slanted shapes and appears 28 times on every build, and
+`Package hyphenat Warning`, the banner the `htt` option prints by design.
+
+The filter reads the `.log` rather than LuaLaTeX's stdout, because the log is
+where a warning is a block ending at a blank line. Those blocks are wrapped
+mid-word at `max_print_line` (see below), so they are glued back into one line
+before printing — which is why the filter and that variable are linked.
+
+The same filter runs when a pass fails, ahead of the log tail: with
+`-halt-on-error` the end of the log is the geometry dump LaTeX prints while
+dying, not the error, so the tail alone is no help. It is only used as a
+fallback, when nothing matched.
+
+`-v` replaces all of this with the raw pass.
 
 #### Index blocks
 

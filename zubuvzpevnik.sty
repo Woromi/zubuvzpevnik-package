@@ -58,6 +58,27 @@
 \newcommand{\zub@meterfont}{\ttfamily}
 \newif\iflargepaper
 \largepaperfalse % default (A5 or smaller)
+% Paper this book is typeset on, matched against each song's pap key
+% (feature/metadata.cfg). Read off the page the class actually set, so the name
+% cannot drift from the paper option passed to \LoadClass. Add a \zub@paperis
+% line for a new size.
+\newcommand{\zub@papername}{}
+\newif\ifzub@paperknown
+\newcommand{\zub@paperis}[3]{%
+	\ifdim\paperwidth=#2\relax\ifdim\paperheight=#3\relax
+		\renewcommand{\zub@papername}{#1}\zub@paperknowntrue
+	\fi\fi
+}
+% At begin-document, so geometry has had its say about the page.
+\AtBeginDocument{%
+	\zub@paperis{a4}{210mm}{297mm}%
+	\zub@paperis{a5}{148mm}{210mm}%
+	\ifzub@paperknown\else
+		\PackageWarning{zubuvzpevnik}{Unrecognised paper \the\paperwidth\space by
+			\the\paperheight, so no song's pap key can be checked against it. Add a
+			\string\zub@paperis\space line for this size}%
+	\fi
+}
 
 % Hook up to songs package
 \renewcommand{\lyricfont}{\zub@lyricfont}

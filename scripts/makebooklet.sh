@@ -14,7 +14,6 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 verbose=0
 cleanup=0
 
-echo "Processing parameters..."
 while [ $# -gt 1 ]; do
     case "$1" in
         -v) verbose=1; shift ;;
@@ -52,6 +51,9 @@ fi
 
 # pdfbook2 writes <jobname>-book.pdf; rename to the expected <jobname>Booklet.pdf
 mv -f "${jobname}-book.pdf" "${jobname}Booklet.pdf"
+
+sheets=$(pdfinfo "${jobname}Booklet.pdf" 2>/dev/null | awk '/^Pages:/{print $2}')
+echo "Finished: ${jobname}Booklet.pdf${sheets:+ ($sheets sheets)}"
 
 if [ "$cleanup" -eq 1 ]; then
     echo "Cleaning build files, uninstalling packages..."
