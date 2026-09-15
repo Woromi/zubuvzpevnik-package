@@ -367,7 +367,7 @@ scratch file out of the working directory, which fails across filesystems when
 the temporary directory is on tmpfs.
 
 A binding allowance is deliberately absent. `geometry`'s `bindingoffset` would
-narrow the text column, every song would reflow and all 69 A5 measurements
+narrow the text column, every song would reflow and every A5 measurement
 would be wrong; and the imposition has no slack to give, since two A5 pages fill
 an A4 sheet exactly. If the sewn spine turns out to swallow too much of the
 inner margin, the change that keeps the marks valid is to widen the *paper* in

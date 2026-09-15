@@ -92,8 +92,8 @@ scripts/checkkeys.py --parts PATH     # detect a key per song part
 It is a heuristic helper, not an authority. Keys are genuinely ambiguous —
 relative major/minor, modal songs, songs that modulate or end away from home —
 so treat disagreements as *worth a look*, not *wrong*. It never edits files.
-Current agreement with the database is 97 %; `--validate` is the regression
-check after touching any of the rules below.
+`--validate` reports agreement with the database, and is the regression check
+after touching any of the rules below.
 
 ### Reaching sounding pitch
 
@@ -317,8 +317,8 @@ So the probe asks TeX directly. `\SB@par`, which songs.sty ends every song line
 with, is patched to look at `\prevgraf` — the number of lines the paragraph
 just came out as — and to write down any line that came out as more than one.
 A song with such a line **does not fit that paper**, however few pages it takes,
-and `--write` takes the mark off. Two songs on A4 and 55 on A5 are in that
-state today.
+and `--write` takes the mark off. `--measure` counts them at the end of its
+report, which is the only place that number is worth reading.
 
 The report names the line: chorus lines are counted from the start of the
 chorus rather than of the file, because `\insertchorus` replays the chorus from

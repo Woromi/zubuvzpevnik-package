@@ -214,6 +214,7 @@ The boolean `\iflargepaper` (true in the A4 class, false in the A5 booklet) driv
 | Command / env | Effect |
 |---------------|--------|
 | `\smalleronsmallpage[frac]` | Shrinks its line on small paper only (default factor `0.5`). |
+| `\chordsoffonsmallpage` | Inside a part: keeps its chords on large paper, drops them on small. |
 | `\begin{narrowonlargepaper} … \end{...}` | On large paper, sets the content in a narrower (80 %) column; full width otherwise. |
 | `\narrowtextnote{…}` | A `\textnote` wrapped in `narrowonlargepaper`. |
 | `\narrowlilypondfile{…}` | A `\lilypondfile` wrapped in `narrowonlargepaper`. |
@@ -221,8 +222,13 @@ The boolean `\iflargepaper` (true in the A4 class, false in the A5 booklet) driv
 ### Which songs fit which paper
 
 Fitting A4 is not fitting A5, and the helpers above are how a song is tightened
-until it does. The `pap={}` key records the outcome: `pap={a4,a5}` means the
-song has been checked to fit **one page** of each, and `pap={a5x2}` that it
+until it does. Reach for `\chordsoffonsmallpage` before `\smalleronsmallpage`:
+a part that reprints chords an earlier part already showed costs a chord line
+above every lyric line, and dropping those buys back about as much room as a
+whole font step without making anything harder to read.
+
+The `pap={}` key records the outcome: `pap={a4,a5}` means the song has been
+checked to fit **one page** of each, and `pap={a5x2}` that it
 fits **two facing A5 pages** — a spread, which the two-sided A5 classes lay a
 two-page song on so that it is played without a page turn. Every size a song is
 known to fit is written down, so no key means none of them — whether the song is
