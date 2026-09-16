@@ -306,6 +306,26 @@ for the same reason the indexes sit there. Its length is close to free: with
 `\padbookpages` rounding the book up to a multiple of four, an overview of one,
 two, three or four pages all cost the same four pages of paper.
 
+### The blank page before a spread song
+
+`songs.sty` will not start a two-page song on a right-hand page: `\SB@spdblpg`
+advances the column counter by a whole page when the parity is wrong, and the
+song moves to the next spread. Every song here starts on a fresh page
+(`\spenalty=-10000`), so nothing fills the page left behind and the book gets a
+blank leaf mid-way.
+
+That branch is patched to warn, naming the song. The patch point is the
+`\advance\SB@cnt\SB@numcols` inside `\if@twoside\ifodd\c@page\else`, which is
+the skip itself rather than the two-page case, so a spread song whose parity
+already works raises nothing — tabor2025 carries two of them silently. The title
+comes from `\ZUB@lastsongtitle`, stashed globally in `\makeprelude`, because
+`\songtitle` is restored inside the song's group and no longer the song's own by
+the time `\SB@submitsong` places it.
+
+The fix is never in the song: it is to change how many pages precede it, by
+moving a one-page song across the boundary. `scripts/checkpaper.py --layout`
+reports the same thing from the finished PDF.
+
 ## The chorus (`refren.cfg`)
 
 ### Verse-like look

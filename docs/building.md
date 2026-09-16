@@ -112,6 +112,11 @@ Rebuilding songbook with the indexes...
 Finished: tabor2025.pdf (36 pages)
 ```
 
+Two of those warnings are the ones worth watching for: a song not marked for the
+paper being typeset, and a two-page song that had to move to the next spread and
+left a blank page behind it (see
+[internals.md](internals.md#the-blank-page-before-a-spread-song)).
+
 Surfaced: `!` errors, `LaTeX`/`Package`/`Class`/`Module` warnings, and
 `Missing character` lines — the last deduplicated with a count, because those
 are exactly the characters LuaLaTeX drops from the PDF without failing
