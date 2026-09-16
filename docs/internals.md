@@ -250,6 +250,62 @@ build simply renders empty. The old guard wrapped only the verse and not its
 `\[…]` body, so in `lyric` mode the orphaned `\[` started display math and
 errored.
 
+### Collected chord diagrams
+
+The `chr={}` diagrams are laid out beside the title, which only the large-paper
+prelude has room for, so on A5 they would simply not print. `\insertusedchords`
+gathers them instead: each song stashes `\ZUB@chordentry{title}{diagrams}` into
+`\ZUB@chr@pending` from `\makeprelude`, and the flush into the global
+`\ZUB@chordlist` hangs off `\SB@origsubmitsong`.
+
+Both halves are deliberate. The stash has to happen *inside* the song, because
+`\songtitle` is only the song's own there — `\SB@@@beginsong` walks the title
+list and `\resettitles` restores it within the song's group, so after `\endsong`
+it is whatever the previous song left. The flush has to happen at
+`\SB@origsubmitsong`, because that is what `lokalizace.cfg` calls *only* for a
+song the language filter keeps; hooking anything earlier would list the chords
+of songs the build dropped. `metadata.cfg` is imported after `lokalizace.cfg`,
+which is what makes that hook available.
+
+Printing is a `\renewcommand` of `\ZUB@chordentry` inside a group, so the stored
+list is one flat token list replayed under whatever layout the book wants — the
+shipped one is a two-column row per song, title left and diagrams right, built
+from two `\parbox[t]`es. Each opens with `\vspace{0pt}` so the boxes align by
+their tops rather than by first baseline, which is what puts the title level
+with the chord names instead of down on the fret numbers. `\par` is neutralised
+inside the diagram box, because `\usedchords` ends with one; let that escape and
+it breaks whatever environment encloses the list. The name column is a fraction
+resolved at use time, not a length fixed at load: the class loads `geometry`
+after this package, so `\linewidth` only means the text width once a page exists.
+
+`\insertallchords` replays that same list with `\gtab` bound to a recorder
+instead of a drawing command, which is why the collection stores the `chr` blob
+whole rather than parsed: the parsing is free at print time. Deduplication and
+sorting happen in Lua (`zubuvzpevnik/lua/akordy.lua`) — the package is
+LuaLaTeX-only through `lyluatex` anyway, and sorting in TeX is not worth it. The
+Lua lives in a file rather than inline because `\directlua` expands its argument
+as TeX, which eats the backslashes and percent signs the code needs. Emission is
+`tex.print` per chord so that each input line's end supplies the glue TeX needs
+to break the chart into rows; `tex.sprint` would run them into one unbreakable
+line. No chord name in the corpus contains a literal `#` or `&` — they are all
+written `\shrp` and `\flt` — which is what lets the recorder take `\gtab`'s
+arguments with a plain two-argument macro instead of repeating `\SB@begincname`'s
+catcode dance.
+
+Placement inside a `songs` environment needs care, and the commands handle it.
+`\end{songs}` is what ships the queued songs (`\commitsongs`), so material
+typeset inside the environment but outside a song reaches the page *ahead* of
+songs still queued, and a `\clearpage` there tears the queue apart — the
+symptom is a chart printed before the last song, with that song split across two
+pages. `\ZUB@chr@ownpage` therefore wraps the output in songs.sty's own
+`intersong*` while `\ifSB@songsenv` holds, which hands it to the same pipeline a
+song goes through, and falls back to a plain `\clearpage` outside.
+
+`malyzpevnik` calls it before its indexes; adding pages there moves no song page,
+for the same reason the indexes sit there. Its length is close to free: with
+`\padbookpages` rounding the book up to a multiple of four, an overview of one,
+two, three or four pages all cost the same four pages of paper.
+
 ## The chorus (`refren.cfg`)
 
 ### Verse-like look

@@ -205,6 +205,10 @@ A song with **no `lang` key** is kept by `\excludelangs` and dropped by `\includ
 
 ## Indexes
 
+`\insertusedchords` prints every `chr={}` diagram in the book, grouped by song and headed *Přehled akordů* (pass an optional argument for another heading). It is for a book whose page is too small to show them beside the title — `malyzpevnik` calls it before its indexes. Only songs the language filter kept are listed. Nothing is printed in a `lyric` build, or when no song in the book declares `chr`.
+
+`\insertallchords` is the compact alternative: the same diagrams merged into one sorted chart, no song titles, duplicates removed — a book's worth of unusual chords on a single page. Sorting puts a root's plain chords before its altered ones (`C7, C9, Cmaj7, C\shrp 7b9`), and two spellings of the same name are kept apart, so three different `F6` fingerings all survive. Both commands read the same collected list, so a book can use either (or both). Either may go inside the `songs` environment or after it, but **the list only holds the songs typeset before the command**, so a chart placed ahead of the songs prints nothing and says so in a warning. For a camp songbook the neat place is the project's own `akordy.tex`, which `\makebackcover` already `\input`s — replacing the hand-written chart with `\insertallchords` needs no class change.
+
 Two indexes are registered: **`obsah`** (by title) and **`obsahAutor`** (by author). The author index lists each author followed by their song titles (`Author --> Title`), with section headings per author. Classes typeset them via `\showindex`/`\insertindex` (see below). Defined in `feature/obsah.cfg`.
 
 ## Large vs. small paper
