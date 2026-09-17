@@ -64,6 +64,12 @@
 	\end{center}
 	\vfill\null
 	\clearpage
+	% The title keeps its own leaf so the songs open on a right-hand page; the
+	% test only adds the blank when the next page would be a verso, so removing
+	% \bindingleaf cannot leave a stray one behind. docs/internals.md
+	\if@twoside
+		\ifodd\c@page\else\thispagestyle{empty}\null\newpage\fi
+	\fi
 }
 
 % ==========================
@@ -80,12 +86,28 @@
 }
 
 % ==========================
+% Binding leaves
+% ==========================
+% The case is glued straight onto the outer leaf at each end of the block, so
+% that leaf carries nothing: the pasted side vanishes under the board and the
+% side facing the reader is stuck to it and never turns. One blank leaf (two
+% pages) at each end keeps content off it. Harmless if separate endpapers are
+% used instead -- it is then the flyleaf. See docs/internals.md.
+\newcommand{\bindingleaf}{%
+	\clearpage
+	\thispagestyle{empty}\null\newpage
+	\thispagestyle{empty}\null\newpage
+}
+
+% ==========================
 % Fill out the last sheet
 % ==========================
 % Every sheet of paper carries four pages, so the book has to end on a multiple
 % of four or the last sheet comes out half empty and unfoldable. Signatures are
 % cut from that page count afterwards by scripts/makebook.sh, which is why this
 % pads to 4 and not to a whole signature -- docs/internals.md.
-\newcommand{\padbookpages}[1][4]{\zub@padpages{#1}{}}
+% The filler runs after \bindingleaf, so it has to be as blank as the leaf is:
+% a folio on the last page would be printed onto the surface the board covers.
+\newcommand{\padbookpages}[1][4]{\zub@padpages{#1}{\thispagestyle{empty}}}
 
 \endinput

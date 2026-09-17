@@ -295,6 +295,7 @@ Set these (usually in a class or the preamble) to restyle without touching the p
 | `\zub@stitlefont` | Song-title font. |
 | `\zub@meterfont` | Meter font. |
 | `\setchordwidth{…}` | Fixed chord width in `instrumental`. |
+| `\bindingleaf` | One blank leaf (two pages); `malyzpevnik` only. The hand-bound case is glued to the outer leaf at each end, so it must carry nothing — see [the hardback book](../docs/internals.md#the-hardback-book-signatures-instead-of-one-booklet). |
 | `\secondvoiceraise` | Second-voice vertical tuck (multi-voice). |
 | `\rolestyle`, `\secondvoicestyle` | Fonts/colors for role labels and the second voice. |
 

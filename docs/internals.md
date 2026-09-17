@@ -570,13 +570,26 @@ into several gatherings that are folded and sewn separately. That changes both
 ends of the arithmetic.
 
 It needs no cover arithmetic, because it has no printed cover — the book is
-cased in by hand and the title page is the first page inside. Page numbers run
+cased in by hand, behind a blank leaf at each end.
+
+**Those two leaves are `\bindingleaf`, and they have to stay blank.** Casing in
+glues the board straight onto the outer leaf of the block: the pasted side
+disappears under the board, and the side facing the reader is stuck to it and
+never turns, right at the hinge where nothing lies flat. Whatever is printed
+there is lost. Without them the title page would be the pasted-down side and the
+last index page the one at the back. Each call is one leaf, two pages, so the
+front one shifts every song by an even number of pages and cannot change the
+left/right parity a `pap={a5x2}` spread depends on. They are also the
+conventional flyleaves if separate endpapers are used instead, so they cost
+nothing either way. Page numbers run
 as one arabic sequence from that page to the last, which is also why the
 indexes are at the end: with no restart, an index at the front would move every
 song page number it records and the two passes would never converge.
 
 `\padbookpages` therefore only rounds the whole document up to a multiple of 4,
-so the last sheet of paper is complete. It and `\padbookletpages` are the same
+so the last sheet of paper is complete. Its filler runs *after* the closing
+`\bindingleaf`, so it sets `\thispagestyle{empty}` too — otherwise the folio
+would print on the very surface the back board is glued over. It and `\padbookletpages` are the same
 loop — `\zub@padpages` in the package, which counts from the page the class
 started numbering at — wrapped differently by each class. `scripts/makebook.sh` cuts the
 signatures out of that page count afterwards: it picks an **even** number of
