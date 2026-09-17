@@ -522,13 +522,23 @@ song's own lever: 29 `\smalleronsmallpage` lines deleted (the base now does that
 job) and 5 `[1]` weakened to plain. That is why no song changed size but the 80
 that carried no lever.
 
-**The base is `\small`, not `\smaller[0.5]`, and the difference is not
-cosmetic.** `\lyricfont` is applied a second time inside `\printversenum`
-(`sloka.cfg`), where the ambient size is already the verse's. A *relative* size
-compounds there, so `\smaller[0.5]` set the lyrics at 9 pt and the verse numbers
-at 8 pt — one step smaller than the `R:` chorus label beside them, which comes
-through a different path. `\small` is absolute and gives 9 pt in both. Anything
-put in `\zub@lyricfont` has to be absolute for that reason.
+**`\printversenum` must not re-apply `\lyricfont`.** It used to, and because
+`\lyricfont` now carries the body *size*, the verse number was sized twice —
+which broke both ways round. With a relative `\smaller[0.5]` in
+`\zub@lyricfont` the number came out one step *below* the lyrics; with the
+absolute `\small` it was *pinned* to 9 pt and stopped following a song's own
+`\smalleronsmallpage`, so a song shrunk to 8 or 7 pt kept 9 pt verse numbers
+(caught on *Cudzinka v tvojej zemi*, 2026-09-17). The fix is to print the number
+with no font command at all: the verse's font is already in force, which is
+exactly why the `R:` chorus label (`refren.cfg`, a plain `\bfseries{R:}`) tracked
+the body size correctly all along. Anything added to `\zub@lyricfont` is applied
+wherever `\lyricfont` is called, so check those call sites before putting a size
+in it.
+
+Sizes are verified from the PDF rather than by reasoning: `pdftotext -bbox`
+gives each word's box, and in the monospaced body the advance width is 0.6 em,
+so `width / len(word) / 0.6` is the point size. Verse number, `R:`, chord and
+lyric should all agree.
 
 Nothing else moved: same 128 pages, the same songs fit, and the A4 book is
 unchanged, `\smalleronsmallpage` being a no-op on large paper. Two tin-whistle
