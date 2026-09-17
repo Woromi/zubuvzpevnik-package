@@ -198,6 +198,8 @@ Transliterating routes every chord through the transposer, so a chord's accident
 
 **Capo.** `\capo{n}` either prints a *Capo n* note (default) or actually transposes the chords by `n` semitones when capo transposition is enabled (the `songs` `transposecapos` option).
 
+**No chord.** `\[\nochord]` marks a spot where nothing is played — it prints *N.C.* Write the macro, not the letters: in `\[N.C.]` the `C` is a note name like any other, so a song with a `\transpose` prints it transposed (*N.A♯* and so on).
+
 **Chord diagrams.** Diagram styling is tweaked (mono barre numbers; spacing above empty frets). Diagrams are drawn with the usual `songs` `\gtab`. (Capo + diagram tweaks live in `feature/akordy.cfg`.)
 
 ## Language and filtering

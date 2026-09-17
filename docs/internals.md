@@ -213,6 +213,20 @@ own `\shrp` (a raised superscript `#`) and `\flt` (a shrunk, raised `$\flat$`).
 The math-mode `\sharp`/`\flat` render but do not match, which is why
 `checksongs.py` nags about them — see [tools.md](tools.md).
 
+### No chord
+
+`\nochord` is the *N.C.* mark, and it is a macro because the text cannot be
+written out. `\[N.C.]` has its `C` read as a note name and transposed with
+everything else, so in a song carrying a `\transpose` it prints as whatever the
+`C` became — `\[N.C.]` in *Amazonka* (`\transpose{-2}`) printed **N.A♯**. The
+transposition scanner only reads uppercase letter tokens as note names
+(`\SB@trstep`) and copies anything else into its output register untouched, so a
+macro token survives and expands to the literal text afterwards.
+
+Bracing the text does not work: `\[{N.C.}]` reaches `\SB@@chord#1]` as a single
+brace group, and TeX strips the outer braces off a macro argument before
+`\SB@trgroup` — which does pass groups through — ever sees them.
+
 ## Multi-voice (`hlasy.cfg`)
 
 `\multivoice{main}{second}` stacks two lines in a `\vtop` with
