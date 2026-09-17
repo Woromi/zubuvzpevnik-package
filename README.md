@@ -268,6 +268,13 @@ A song whose `pap` does not list the paper being typeset raises a package
 warning while the book builds, with no opt-out — so an A5 build lists the songs
 nobody has checked at that size.
 
+The build also checks the claim against itself: a song marked for **one** page
+that actually came out on two warns as well, naming both numbers. That one reads
+the pages the song really landed on out of the `.aux`, so it needs the second
+LuaLaTeX pass every project build already runs — a fresh build is silent on the
+first pass and warns on the next. It is what catches a song that was tightened
+onto one page once and has since grown.
+
 `scripts/checkpaper.py` reports the flags, `--measure a5` re-derives them by
 actually typesetting every song — a song with a line too wide for the column
 does not count as fitting — and `--layout` builds the books and checks that the

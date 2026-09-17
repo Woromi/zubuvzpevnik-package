@@ -277,6 +277,11 @@ Each `--measure` run only records the paper it measured, so a new song wants
 both (`--measure a4 --write`, then `--measure a5 --write`) before its key is
 the whole answer.
 
+A stale key does not need this script to be noticed, though: the package itself
+warns during a build when a song marked for one page came out on more (see
+[internals.md](internals.md#paper-fit)). `--measure` is still what re-derives
+the key; the build warning is what tells you to.
+
 The paper a book is being typeset on is not declared anywhere — `zubuvzpevnik.sty`
 reads it off `\paperwidth`/`\paperheight` at `\begin{document}`, after
 `geometry` has had its say, and matches them against the `\zub@paperis` lines

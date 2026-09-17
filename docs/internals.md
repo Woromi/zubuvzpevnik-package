@@ -210,6 +210,40 @@ it did, we would be using its version instead of a second one — and each is a
 some other package is a build error naming the macro rather than a silent
 override. Renaming to `\zub@…` is the fix if one ever turns up.
 
+### Paper fit
+
+`pap={}` is a *claim*, and two checks test it. `\zub@checkpaperfit` reads the
+key: it warns when the paper being typeset is not listed, which catches a song
+nobody has measured. That one cannot catch the opposite mistake — a song that
+still says `a5` after an edit made it too long — because the key alone cannot
+know.
+
+`\zub@checkpagespan` catches that one by asking the build. songs.sty puts the
+prelude at the top of the song box and the postlude at the bottom
+(songs.sty:884, 896), so a `\write` parked in each ships out with the song's
+first and last page. Both land in the `.aux` as `\zub@songpage{id}{s|e}{page}`
+and are read back on the next run, so this needs two LuaLaTeX passes exactly as
+`\pageref` does — every project build makes at least two. The first pass of a
+fresh build is therefore silent; the warning appears on the pass after it.
+
+Three details are load-bearing:
+
+- The id is `\theSB@songsnum-\thesongnum`, the same pair songs.sty uses for its
+  hyperref anchors, so it stays unique across several `songs` environments. The
+  language filter decrements `songnum` for a song it drops (`lokalizace.cfg`),
+  which keeps the numbering dense and the ids stable between runs.
+- The page is written as `\the\c@page`, not `\thepage`: front matter may number
+  in roman and the span is arithmetic. It is `\let` to `\relax` inside
+  `\protected@write` so it survives the `\edef` unexpanded and is expanded at
+  shipout, which is what makes it the page the song actually landed on rather
+  than the page the page-builder happened to be on.
+- A song dropped by the language filter has its box voided, so neither `\write`
+  ever ships and the lookup finds nothing — no warning for a song the build did
+  not print.
+
+The allowance comes from which mark matched: a plain `a5` promises one page, a
+bare `a5x2` two. A song listing both is held to the stronger claim.
+
 ## Chords (`akordy.cfg`)
 
 `\capo{n}` either transposes (when the `songs` `transposecapos` option is on) or
