@@ -62,9 +62,9 @@ jobname="${outputfile:-$(basename "$texfile" .tex)}"
 # A LuaLaTeX log is ~2000 lines of which a handful are worth reading. Blocks
 # that open with one of these and run to the next blank line are surfaced; the
 # log hard-wraps them mid-word at max_print_line, so they are glued back
-# together. Font shape substitutions and hyphenat's htt banner are on every
-# build for reasons the repo already knows about, so they are counted, not
-# printed. -v prints the whole log instead. See docs/building.md.
+# together. Font shape substitutions are on every build for a reason the repo
+# already knows about, so they are counted, not printed. -v prints the whole log
+# instead. See docs/building.md.
 report_log() {
     [ -f "$1" ] || return 0
     awk '
@@ -88,7 +88,7 @@ report_log() {
             flush()
             inblk = 1
             iserr = /^! /
-            quiet = (/^LaTeX Font Warning/ || /^Package hyphenat Warning/)
+            quiet = /^LaTeX Font Warning/
         }
         inblk {
             line = $0
@@ -98,7 +98,7 @@ report_log() {
         END {
             flush()
             for (m in miss) print "  " m " [" miss[m] "x]"
-            if (hidden) printf "  (%d routine font/hyphenat notice(s) hidden; -v shows the whole log)\n", hidden
+            if (hidden) printf "  (%d routine font notice(s) hidden; -v shows the whole log)\n", hidden
         }
     ' "$1"
 }

@@ -61,6 +61,29 @@ subdirectory would shadow ours, since `.` comes first on `TEXINPUTS`;
 Hebrew, all via `\babelfont`. Alegreya Sans (role labels) and the two camp cover
 faces are selected by name with `\setmainfont` at the point of use.
 
+**Hyphenation in the lyric font.** Roboto Mono is declared
+`HyphenChar={-}`, because `fontspec` loads a *monospaced* font with
+`\hyphenchar\font=-1` — hyphenation off — and the lyrics are set in `tt`. Two
+things need that character back: TeX's own line breaking, and `songs`, which
+draws the hyphens of a word split across chords (`\[C]lo\[G/B]ne\[Am]ly` →
+`lo - ne - ly`) only `\ifnum\hyphenchar\font>-1` (songs.sty:2595). The
+declaration belongs to the *family*, so it is reapplied every time a font of
+that family is loaded.
+
+That last part is the whole point. The `hyphenat` package's `htt` option, which
+used to stand here, assigns `\hyphenchar` by selecting each `tt` shape once
+`\AtBeginDocument` — so it only ever reaches the font instances live at that
+moment, and every instance loaded later comes up with fontspec's default. Two
+things load later:
+
+- **Other sizes.** A4 sets lyrics in plain `\ttfamily` (10pt) and worked; the A5
+  body is `\small\ttfamily` (9pt, see [The A5 body size](#the-a5-body-size)) and
+  `\smalleronsmallpage` is 8pt, and neither hyphenated.
+- **Other languages.** `\babelfont` builds a separate family per language,
+  lazily, at the first `\selectlanguage`. Only the main language (`czech`) is
+  up at begin-document, so every `lang={english}` song was un-hyphenated on both
+  papers.
+
 **Styling hooks.** The package defines `\zub@lyricfont`, `\zub@printchord`,
 `\zub@stitlefont` and `\zub@meterfont` as internal defaults and wires them into
 the `songs` hooks (`\lyricfont` and friends). Classes override the `\zub@…`

@@ -24,7 +24,6 @@
 \RequirePackage{bookmark}
 \RequirePackage{calc}
 \RequirePackage[fragment=false,pass-fonts,language=Czech]{lyluatex}
-\RequirePackage[htt]{hyphenat}
 \RequirePackage{xstring}
 
 % ==========================
@@ -46,7 +45,20 @@
 % ==========================
 \babelfont{rm}{Open Sans}
 \babelfont{sf}{Open Sans}
-\babelfont{tt}{Roboto Mono}
+% HyphenChar: fontspec loads a monospaced font with hyphenation off, and lyrics
+% are set in tt -- so without it nothing hyphenates and songs' chord-split hyphen
+% (\[C]lo\[G/B]ne\[Am]ly) is never drawn. It belongs to the family, so it holds
+% at every size and in every language, which is where hyphenat's htt option --
+% what stood here -- fell short. See docs/internals.md#package-setup.
+% The "XeTeX-only feature" warning fontspec prints for HyphenChar is wrong on
+% LuaTeX -- its own LuaTeX branch applies the value -- so it is silenced. Not
+% just around the declaration below: babel builds the tt family again for each
+% language, lazily, so most of the warnings land mid-document. HyphenChar is the
+% only such feature the repo uses, so nothing real is being hidden.
+\ExplSyntaxOn
+\msg_redirect_name:nnn { fontspec } { only-xetex-feature } { none }
+\ExplSyntaxOff
+\babelfont{tt}[HyphenChar={-}]{Roboto Mono}
 \babelfont[hebrew]{rm}{FreeSans}
 
 % ==========================

@@ -121,7 +121,7 @@ Building index: obsah...
 Building index: obsahAutor...
 Rebuilding songbook with the indexes...
   Package zubuvzpevnik Warning: Song 'Gandalfovy obchodní úspěchy' is not marked as fitting a5 paper; ...
-  (29 routine font/hyphenat notice(s) hidden; -v shows the whole log)
+  (28 routine font notice(s) hidden; -v shows the whole log)
 Finished: tabor2025.pdf (36 pages)
 ```
 
@@ -136,8 +136,7 @@ are exactly the characters LuaLaTeX drops from the PDF without failing
 ([tools.md](tools.md#checksongspy--metadata)).
 
 Counted rather than printed: `LaTeX Font Warning`, which is Roboto Mono having
-no small-caps or slanted shapes and appears 28 times on every build, and
-`Package hyphenat Warning`, the banner the `htt` option prints by design.
+no small-caps or slanted shapes and appears 28 times on every build.
 
 The filter reads the `.log` rather than LuaLaTeX's stdout, because the log is
 where a warning is a block ending at a blank line. Those blocks are wrapped
