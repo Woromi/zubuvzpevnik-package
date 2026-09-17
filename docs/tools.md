@@ -66,6 +66,7 @@ while the character silently vanishes.
 | `\textrightarrow` | error | resolves through the text font, so it drops too |
 | `\flat`, `\sharp` | warning | render, but not the way the chords do |
 | `Bb`-style flat in `key={}` or `\[Bb…]` | warning | typesets as the literal letters |
+| `\[N.C.]` written out | warning | the `C` is a note name, so a `\transpose` moves it — use `\[\nochord]` |
 
 `\rightarrow` and `$\rightarrow$` both *do* render — they resolve through the
 math font — which is why the house spelling for a modulation is

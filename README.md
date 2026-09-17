@@ -194,7 +194,7 @@ Transliterating routes every chord through the transposer, so a chord's accident
 \useautoaccidentals   % default: songs chooses, per song
 ```
 
-`\prefersharps` / `\preferflats` keep their `songs` meaning inside a song, for a one-song exception. None of the three affects a song whose chords are printed verbatim — there is nothing to re-spell in a chord nobody parsed.
+`\prefersharps` / `\preferflats` are the one-song exception, and outrank the book-wide setting. They hold for the rest of the song wherever you put them — above or below `\transpose` / `\capo` — and do not leak into the next song. None of the three affects a song whose chords are printed verbatim — there is nothing to re-spell in a chord nobody parsed.
 
 **Capo.** `\capo{n}` either prints a *Capo n* note (default) or actually transposes the chords by `n` semitones when capo transposition is enabled (the `songs` `transposecapos` option).
 

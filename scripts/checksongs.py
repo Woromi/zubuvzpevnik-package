@@ -40,6 +40,9 @@ PREFER_SONGS_ACCIDENTAL = {r"\flat": r"\flt", r"\sharp": r"\shrp"}
 ASCII_FLAT_KEY = re.compile(r"(?<![A-Za-z])([A-H])b")
 ASCII_FLAT_CHORD = re.compile(r"\\\[([A-H])b")
 
+# Written out, the C in N.C. is read as a note name and transposed with the rest.
+SPELLED_NOCHORD = re.compile(r"\\\[\s*N\.?\s*C\.?\s*\]")
+
 # --- What counts as a song key ---------------------------------------------
 # This repo's keys plus the songs built-ins; anything else is a possible typo.
 CUSTOM_KEYS = {"lang", "key", "tun", "tem", "ori", "chr", "src", "pap"}
@@ -123,6 +126,11 @@ def check_rendering(info):
         issues.append((Severity.WARN,
                        f"chord spells a flat as 'b' ({spelled}) - use & so songs.sty "
                        "prints a flat sign"))
+    n = len(SPELLED_NOCHORD.findall(text))
+    if n:
+        issues.append((Severity.WARN,
+                       "no-chord mark is spelled out - use \\[\\nochord], or the C is "
+                       f"read as a note and transposed with the song  [{n}x]"))
     return issues
 
 

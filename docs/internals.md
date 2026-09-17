@@ -150,6 +150,16 @@ songs that never transpose, where `\SB@setkeysig` is not consulted at all. Both
 assignments are `\global`, as `songs`' own are: a chord is set inside a group
 that the next song must not inherit from.
 
+`\prefersharps` and `\preferflats` are redefined onto the same mechanism, as a
+one-song pin that outranks the book-wide one. Left as `songs` defines them they
+only set the flags, so `\transpose` below them takes the choice straight back —
+*Amazonka* asks for `\preferflats` and, before this, printed its descending
+Hm–B♭m–Am as **Hm A♯m Am** because the `\transpose{-2}` on the next line
+re-armed the guess. Recording the request instead of only acting on it makes it
+hold wherever in the song it stands. `\SB@@@beginsong` clears it, so it does not
+leak into the next song — which is also why a `\prefersharps` in a preamble
+still does not survive the first song.
+
 ### Index sort directive
 
 `\SB@addtoindex` is patched to emit a `%lang <language>` line before each song's
