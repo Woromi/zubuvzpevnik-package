@@ -195,6 +195,38 @@ the large-index layout with per-author section headings, which the package
 otherwise only uses for long indexes. `\idxheadwidth` is widened from the stock
 1.5 cm because the headings are now author names, not single letters.
 
+**`\idxheadwidth` is set from the column, not the page.** `\SB@idxsetup` runs
+inside each index column with `\hsize` already narrowed to the column width, so
+hooking it is what keeps the heading inside its column. Setting the length once
+at load time from `\linewidth` takes the whole text block — harmless in a
+one-column index, but in a two-column A5 index that is 254 pt of heading in a
+177 pt column, and it pushes the right-hand column clean off the page (the
+author index measured a *negative* right margin).
+
+Both indexes are two columns on both papers; on A5 that takes them from 13 pages
+to 7. **`\insertindex` narrows `\hsize` by 8 pt first**, which is what keeps
+them inside the margins. Two things eat into the right edge otherwise, and both
+only show from the *second* page of an index, because songs.sty sets the first
+page of each as one centred column:
+
+- `\SB@multiline` ends every entry with `\rightskip2em` and then pulls the page
+  reference back out with `\kern-2em`, so a reference wider than 2 em hangs past
+  the line. Three-digit page numbers do exactly that.
+- `\SB@colwidth` is derived from `\hsize` at `\SB@displayindex` time, and twice
+  the column plus one `\columnsep` came out about 1.4 pt wider than the text
+  block.
+
+Together they cost 6 pt — 2.1 mm of the 10 mm outer margin, which on a verso is
+the spine side of a book bound with no allowance. Taking 8 pt off `\hsize`
+absorbs both and costs no pages.
+
+A long author name still has to wrap, so the heading box measures the name and
+falls back to a `\parbox` when it does not fit; that measurement needs its own
+save box, because box 0 is scratch for the index machinery around it and reusing
+it reflows 40 pages of A4. Note `\SB@colorbox` pads with a hardcoded `\kern3\p@`
+rather than `\fboxsep` under the `noshading` option all our classes pass, so
+`\fboxsep` is not the knob it looks like.
+
 ## Metadata (`metadata.cfg`)
 
 Each optional key (`key`, `tun`, `tem`, `ori`, `chr`, `src`) is a `\newsongkey`

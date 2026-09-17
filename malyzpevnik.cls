@@ -77,12 +77,19 @@
 % ==========================
 % At the end, and not only by convention: the page numbers run unbroken from
 % page 1, so an index at the front would shift every song page number it
-% records and the two LuaLaTeX passes would never converge. One column, because
-% an A5 text block is too narrow to split an index title and its dot leaders.
+% records and the two LuaLaTeX passes would never converge. Two columns: the
+% entries are short enough that the dot leaders absorb the lost width, and it
+% halves the index -- 13 pages to 7.
 \newcommand{\insertindex}{%
 	\clearpage
-	{\large \showindex[1]{Obsah}{obsah}}
-	{\large \showindex[1]{Obsah podle interpreta}{obsahAutor}}
+	% songs.sty ends an index line with \rightskip2em and then pulls the page
+	% number back out with \kern-2em, so a reference wider than 2em hangs past
+	% the line; two columns also come out a hair wider than the text block.
+	% Taking the index in slightly narrows both columns and absorbs the hang.
+	\begingroup\addtolength{\hsize}{-8pt}%
+	{\large \showindex[2]{Obsah}{obsah}}
+	{\large \showindex[2]{Obsah podle interpreta}{obsahAutor}}%
+	\endgroup
 }
 
 % ==========================
