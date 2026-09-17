@@ -131,22 +131,8 @@
 % ==========================
 % Pads songs to a multiple of #1, giving 2 + 4n + 2 overall; only valid while
 % the front matter is 2 pages. docs/internals.md#document-classes-and-booklet-page-maths
-\RequirePackage{modulus}
-\newcounter{extrablankpages}
 \newcommand{\padbookletpages}[1][4]{%
-	\clearpage
-	\modulo{\numexpr \value{page}-1 \relax}{#1}%
-	\ifnum\remainder=0
-		\setcounter{extrablankpages}{0}%
-	\else
-		\setcounter{extrablankpages}{\numexpr #1 - \remainder \relax}%
-	\fi
-	\loop
-	\ifnum\value{extrablankpages}>0
-	\pagestyle{fancy}
-	\null\newpage
-	\addtocounter{extrablankpages}{-1}%
-	\repeat
+	\zub@padpages{#1}{\pagestyle{fancy}}%
 	\ifnum\value{ZUB@frontpages}=\tw@\else
 		\ClassWarning{taborovyzpevnik}{Front matter is
 			\theZUB@frontpages\space page(s), not 2, so the book will not come out a

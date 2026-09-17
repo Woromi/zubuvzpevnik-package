@@ -22,8 +22,8 @@ import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from checksongs import (collect_song_files, find_matching, input_name,  # noqa: E402
-                        parse_song, strip_comments)
+from songfile import (collect_song_files, find_matching, input_name,  # noqa: E402
+                      parse_song, strip_comments)
 
 # Class -> the paper it typesets. Several classes can share a paper: the A5 ones
 # share zubuvzpevnik/a5layout.cfg, so a song measures the same on either.
@@ -121,6 +121,11 @@ def entry(paper, room):
     """How a pap key spells that much room, or None for a song that fits
     neither one page of this paper nor a spread of two."""
     return {1: paper, 2: paper + SPREAD_SUFFIX}.get(room)
+
+
+def by_input_name(parsed, repo_root):
+    """Parsed songs keyed by the name a project \\input{}s them under."""
+    return {name: info for f, info in parsed if (name := input_name(f, repo_root))}
 
 
 def project_files(repo_root):
@@ -228,9 +233,11 @@ def run_lualatex(builddir, env, args, job, verbose):
 def build_env(repo_root, builddir, extra=None):
     """A build directory that shares the repo's LilyPond cache and images, and
     the environment to typeset in it. Sharing tmp-ly is what makes a re-measure
-    cost no lilypond runs."""
-    (repo_root / "tmp-ly").mkdir(exist_ok=True)
-    (builddir / "tmp-ly").symlink_to(repo_root / "tmp-ly")
+    cost no lilypond runs -- it is the cache the project builds fill, under the
+    build/ directory they write to."""
+    cache = repo_root / "build" / "tmp-ly"
+    cache.mkdir(parents=True, exist_ok=True)
+    (builddir / "tmp-ly").symlink_to(cache)
     if (repo_root / "img").is_dir():
         (builddir / "img").symlink_to(repo_root / "img")
     env = dict(os.environ)
@@ -433,11 +440,7 @@ def report_flags(parsed, repo_root, summary_only):
 def report_projects(parsed, repo_root):
     """Each project against the paper its class typesets: a song built into a
     book it is not marked for is one nobody has checked at that size."""
-    by_name = {}
-    for f, info in parsed:
-        name = input_name(f, repo_root)
-        if name:
-            by_name[name] = info
+    by_name = by_input_name(parsed, repo_root)
     print("\nProjects:")
     unchecked = 0
     for tex, _, paper, groups in project_files(repo_root):
@@ -538,11 +541,7 @@ def report_layout(parsed, repo_root, measured, keep=False, verbose=False):
     Two things somebody playing from the book notices and a page count does not:
     a song on two pages that a page turn falls between, and a blank page left
     in the middle of the book to keep one from doing so."""
-    by_name = {}
-    for f, info in parsed:
-        name = input_name(f, repo_root)
-        if name:
-            by_name[name] = info
+    by_name = by_input_name(parsed, repo_root)
     print("\nBook layout:")
     problems = 0
     for tex, cls, paper, groups in project_files(repo_root):

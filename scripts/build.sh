@@ -9,7 +9,7 @@ if [ $# -lt 1 ]; then
     echo "  -e lang[,...] : exclude songs with given language(s)"
     echo "  -o output     : output PDF filename (without extension)"
     echo "  -v            : verbose output"
-    echo "  -c            : cleanup build files after build"
+    echo "  -c            : cleanup build files in the output directory after build"
     exit 1
 fi
 
@@ -153,6 +153,6 @@ pages=$(pdfinfo "$jobname.pdf" 2>/dev/null | awk '/^Pages:/{print $2}')
 echo "Finished: $jobname.pdf${pages:+ ($pages pages)}"
 
 if [ "$cleanup" -eq 1 ]; then
-    echo "Cleaning build files, uninstalling packages..."
-    "$SCRIPT_DIR/cleanup.sh"
+    echo "Cleaning build files..."
+    "$SCRIPT_DIR/cleanup.sh" .
 fi

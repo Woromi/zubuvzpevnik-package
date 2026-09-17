@@ -4,6 +4,11 @@ Three tools under `scripts/`. None of them affects the build; all are
 conveniences for after adding songs and before a release. The first two never
 edit files; `checkpaper.py` does only when asked with `--write`.
 
+All three read song files through one module, `scripts/songfile.py` — comment
+stripping, brace matching, the `\beginsong` prelude and finding the files — so
+they cannot drift apart in what they think a song says. It holds no policy: what
+counts as a problem lives in the tool that reports it.
+
 - [`checksongs.py`](#checksongspy--metadata) — metadata and text that will not
   render
 - [`checkkeys.py`](#checkkeyspy--keys) — `key={}` versus the chords actually
@@ -298,9 +303,9 @@ index file (`obsah.sxd`), and the probe sets `\pagestyle{empty}` so that the
 *blank* page a forced break sometimes leaves behind can be told apart from a
 page the song really spilled onto; blank pages are not counted against a song.
 
-The probe builds in a temporary directory with the repo's `tmp-ly` symlinked
-in, so it shares the LilyPond cache with the real builds and a re-measure costs
-no LilyPond runs.
+The probe builds in a temporary directory with `build/tmp-ly` symlinked in, so
+it shares the LilyPond cache with the real builds and a re-measure costs no
+LilyPond runs.
 
 It is a measurement, not an opinion: run against the 58 songs of the 2025 and
 2026 camp books it reproduces those PDFs page for page, including the two songs

@@ -86,21 +86,6 @@
 % of four or the last sheet comes out half empty and unfoldable. Signatures are
 % cut from that page count afterwards by scripts/makebook.sh, which is why this
 % pads to 4 and not to a whole signature -- docs/internals.md.
-\RequirePackage{modulus}
-\newcounter{ZUB@fillpages}
-\newcommand{\padbookpages}[1][4]{%
-	\clearpage
-	\modulo{\numexpr\value{page}-1\relax}{#1}%
-	\ifnum\remainder=0
-		\setcounter{ZUB@fillpages}{0}%
-	\else
-		\setcounter{ZUB@fillpages}{\numexpr #1 - \remainder \relax}%
-	\fi
-	\loop
-	\ifnum\value{ZUB@fillpages}>0
-	\null\newpage
-	\addtocounter{ZUB@fillpages}{-1}%
-	\repeat
-}
+\newcommand{\padbookpages}[1][4]{\zub@padpages{#1}{}}
 
 \endinput

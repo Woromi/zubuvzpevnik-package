@@ -19,6 +19,9 @@ import sys
 from collections import Counter
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from songfile import strip_comments  # noqa: E402
+
 NAMES_SHARP = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 
 # Note letter -> semitone (pitch class). German/Czech naming swaps B and H.
@@ -37,9 +40,9 @@ NAMED_TUNINGS = {"standard": 0, "half-step down": -1, "half step down": -1,
 # The register a plain \beginverse uses; sloka.cfg also names it "verse".
 DEFAULT_REGISTER = "verse"
 # Part types; load() also picks up any the song adds with \newSongPartType.
-PART_TYPES = {"verse", "chorus", "prechorus", "recprechorus", "bridge", "bridgeb",
+PART_TYPES = {"verse", "chorus", "prechorus", "bridge",
               "intro", "outro", "instrumental"}
-NEW_PART_RE = re.compile(r"\\newSongPartType\{([a-zA-Z]+)\}")
+NEW_PART_RE = re.compile(r"\\newSongPartType(?:\[[^\]]*\])?\{([a-zA-Z]+)\}")
 # One ordered scan, so \transpose applies only to the chords that follow it.
 TOKEN_RE = re.compile(
     r"\\transpose\*?\{([+-]?\d+)\}"                 # 1: transpose
@@ -156,21 +159,32 @@ def key_label(spec, german):
     return name + ("m" if minor else "")
 
 
+def sounding(d, chords, lvl=None):
+    """Fingered chords at the pitch they sound: shifted by capo and tuning, and
+    by how far a part's own \\transpose sits from the song's home level."""
+    shift = d["capo"] + d["tuning"] + (0 if lvl is None else lvl - d["transpose"])
+    return [((pc + shift) % 12, mn) for pc, mn in chords]
+
+
+def parts_sounding(d):
+    """d["parts"], with each part's chords brought to sounding pitch."""
+    return [(kind, tuple(sounding(d, chords, lvl)), elided, lvl)
+            for kind, chords, elided, lvl in d["parts"]]
+
+
+def part_type_pools(d):
+    """Sounding chords pooled per part type, in order of first appearance."""
+    pools = {}
+    for kind, snd, _, _ in parts_sounding(d):
+        pools.setdefault(kind, []).extend(snd)
+    return pools
+
+
 def part_type_keys(d, minimum=1):
     """Pooled key per part type, for types with at least `minimum` chords.
     Pooling beats scoring parts singly: one verse is often too short."""
-    sounds = d["capo"] + d["tuning"]
-    order, pools = [], {}
-    for kind, chords, elided, lvl in d["parts"]:
-        snd = [((pc + lvl - d["transpose"] + sounds) % 12, mn) for pc, mn in chords]
-        if not snd:
-            continue
-        if kind not in pools:
-            order.append(kind)
-            pools[kind] = []
-        pools[kind] += snd
-    return [(k, score_keys(pools[k], pools[k][-1])[0][1])
-            for k in order if len(pools[k]) >= minimum]
+    return [(kind, score_keys(pool, pool[-1])[0][1])
+            for kind, pool in part_type_pools(d).items() if len(pool) >= minimum]
 
 
 def key_name(spec):
@@ -211,7 +225,6 @@ def load(path):
     memorizing = False
     queue = []                # chords still to be handed out to ^ in this part
     memo = []
-    starved = 0               # ^ markers with nothing left to replay
 
     def emit(c, replayed=False):
         """Record one sounding chord. Replays reach the part but NOT the pooled
@@ -251,8 +264,8 @@ def load(path):
                 c = queue.pop(0)
                 if c:
                     emit(c, replayed=True)
-            else:
-                starved += 1      # songs.sty errors here; means we mis-read a register
+            # An empty queue means songs.sty would have errored here, so if it
+            # happens we have mis-read a register; there is nothing to replay.
             continue
         if m.group(7) is not None:            # \usechords / \copychords
             src = list(registers.get(m.group(8), ()))
@@ -292,22 +305,8 @@ def load(path):
         "modulates": modulates, "stated_raw": stated_raw,
         "stated_all": stated_all,
         "stated": stated_all[0] if stated_all else None,   # the home key
-        "chords": chords, "parts": parts, "starved": starved,
+        "chords": chords, "parts": parts,
     }
-
-
-def strip_comments(text):
-    out = []
-    for line in text.splitlines(keepends=True):
-        i, cut = 0, None
-        while i < len(line):
-            if line[i] == "\\":
-                i += 2; continue
-            if line[i] == "%":
-                cut = i; break
-            i += 1
-        out.append(line if cut is None else line[:cut] + ("\n" if line.endswith("\n") else ""))
-    return "".join(out)
 
 
 # Diatonic triads per key; minor includes the borrowed major V and VII.
@@ -318,11 +317,11 @@ MINOR_TRIADS = {(0, True), (3, False), (5, True), (7, True), (8, False), (10, Fa
 def is_truncated_reprise(i, parts):
     """True if parts[i] is an abbreviated repeat, which stops mid-phrase and so
     does not end on a cadence: a strict chord prefix of a longer part, elided."""
-    kind, chords, elided = parts[i]
+    kind, chords, elided, _ = parts[i]
     if not elided:
         return False
     return any(k == kind and len(c) > len(chords) and c[:len(chords)] == chords
-               for j, (k, c, _) in enumerate(parts) if j != i)
+               for j, (k, c, _, _) in enumerate(parts) if j != i)
 
 
 def ending_chord(parts, fallback):
@@ -367,13 +366,6 @@ def score_keys(sounding, last=None):
     return scored
 
 
-def detect_key(sounding, last=None):
-    """sounding: list of (pc, is_minor). Returns (tonic_pc, is_minor) or None."""
-    if not sounding:
-        return None
-    return score_keys(sounding, last)[0][1]
-
-
 def relative(spec):
     """Relative major<->minor: 3 semitones above a minor tonic, 3 below a major."""
     pc, minor = spec
@@ -413,15 +405,11 @@ def margin(scored, stated_all, detected):
 
 def analyze(path):
     d = load(path)
-    sounds = d["capo"] + d["tuning"]        # fingered shapes -> sounding pitch
-    shift = lambda seq: [((pc + sounds) % 12, mn) for pc, mn in seq]
-    sounding = shift(d["chords"])
-    d["sounding"] = sounding
+    d["sounding"] = snd = sounding(d, d["chords"])
     # Only home-level parts may decide the cadence; key={} leads with the home key
-    home_parts = [(kind, tuple(shift(c)), elided)
-                  for kind, c, elided, lvl in d["parts"] if lvl == d["transpose"]]
-    d["ending"] = ending_chord(home_parts, sounding[-1]) if sounding else None
-    d["scored"] = score_keys(sounding, d["ending"]) if sounding else []
+    home_parts = [p for p in parts_sounding(d) if p[3] == d["transpose"]]
+    d["ending"] = ending_chord(home_parts, snd[-1]) if snd else None
+    d["scored"] = score_keys(snd, d["ending"]) if snd else []
     detected = d["scored"][0][1] if d["scored"] else None
     # For a song in more than one key the parts, not the pooled chords, decide
     d["modulation"] = None
@@ -494,13 +482,10 @@ def modulation_key(d):
 
 def part_keys(d, with_chords=False):
     """Best key per part on its own; with_chords adds the sounding chords."""
-    sounds = d["capo"] + d["tuning"]
     out = []
-    for kind, chords, elided, lvl in d["parts"]:
-        snd = [((pc + lvl - d["transpose"] + sounds) % 12, mn) for pc, mn in chords]
-        if snd:
-            spec = score_keys(snd, snd[-1])[0][1]
-            out.append((kind, spec, snd) if with_chords else (kind, spec))
+    for kind, snd, _, _ in parts_sounding(d):
+        spec = score_keys(snd, snd[-1])[0][1]
+        out.append((kind, spec, snd) if with_chords else (kind, spec))
     return out
 
 
@@ -520,7 +505,6 @@ def parts_report(path, repo):
     """Detect a key for each song part on its own -- what a modulation looks
     like from the chords. See docs/tools.md#reading-the-output."""
     d, detected, cls = analyze(path)
-    sounds = d["capo"] + d["tuning"]
     print(os.path.relpath(path, repo))
     print(f"  stated key : {d['stated_raw'] or '-'}  ({key_names(d['stated_all'])})")
     print(f"  shift      : {shifts_note(d)}  (fingered chords -> sounding pitch)")
@@ -528,15 +512,14 @@ def parts_report(path, repo):
     if not d["parts"]:
         print("  no song parts with chords found\n")
         return
-    # An ellipsis alone is not a truncation; ask what the cadence logic asks
-    triples = [(k, c, e) for k, c, e, _ in d["parts"]]
+    ps = parts_sounding(d)
     print(f"  {'#':>2}  {'part':<20} {'n':>3}  {'chords (sounding)':<44}  best keys for that part")
-    for i, (kind, chords, elided, lvl) in enumerate(d["parts"]):
-        snd = [((pc + lvl - d["transpose"] + sounds) % 12, mn) for pc, mn in chords]
+    for i, (kind, snd, elided, lvl) in enumerate(ps):
         label = kind
         if lvl != d["transpose"]:
             label += f" {lvl - d['transpose']:+d}"
-        if is_truncated_reprise(i, triples):
+        # An ellipsis alone is not a truncation; ask what the cadence logic asks
+        if is_truncated_reprise(i, ps):
             label += " (cut short)"
         seq = " ".join(key_name(c) for c in snd)
         if len(seq) > 44:
@@ -544,14 +527,11 @@ def parts_report(path, repo):
         top = "   ".join(f"{key_name(s)} {sc:.0f}" for sc, s in score_keys(snd, snd[-1])[:3])
         print(f"  {i:>2}  {label:<20} {len(snd):>3}  {seq:<44}  {top}")
     # Pooling by type separates a verse key from a chorus key
-    kinds = sorted({k for k, _, _, _ in d["parts"]})
-    if len(kinds) > 1 or len(d["parts"]) > len(kinds):
+    pools = part_type_pools(d)
+    if len(pools) > 1 or len(ps) > len(pools):
         print("  pooled by part type:")
-        for kind in kinds:
-            pool = [((pc + lvl - d["transpose"] + sounds) % 12, mn)
-                    for k, cs, _, lvl in d["parts"] if k == kind for pc, mn in cs]
-            if not pool:
-                continue
+        for kind in sorted(pools):
+            pool = pools[kind]
             hist = "  ".join(f"{key_name(c)}×{n}" for c, n in Counter(pool).most_common(5))
             top = "   ".join(f"{key_name(s)} {sc:.1f}" for sc, s in score_keys(pool, pool[-1])[:3])
             print(f"    {kind:<14} ({len(pool):>3})  {hist:<40}  -> {top}")
@@ -562,17 +542,10 @@ def explain(path, repo):
     """Print the detector's reasoning for one song."""
     d, detected, cls = analyze(path)
     print(os.path.relpath(path, repo))
-    shift = []
-    if d["transpose"]:
-        shift.append(f"transpose {d['transpose']:+d}")
-    if d["capo"]:
-        shift.append(f"capo +{d['capo']}")
-    if d["tuning"]:
-        shift.append(f"tuning {d['tuning']:+d}")
     naming = "Czech/Slovak (H=B♮, B=B♭)" if d["german"] else "English (B=B♮)"
     print(f"  stated key : {d['stated_raw'] or '-'}  ({key_names(d['stated_all'])})")
     print(f"  note naming: {naming}")
-    print(f"  shift      : {' + '.join(shift) if shift else 'none'}  (fingered chords -> sounding pitch)")
+    print(f"  shift      : {shifts_note(d)}  (fingered chords -> sounding pitch)")
     if d["modulates"]:
         print("  modulates  : mid-song \\transpose found -> detecting the HOME key only")
     if d["modulation"]:

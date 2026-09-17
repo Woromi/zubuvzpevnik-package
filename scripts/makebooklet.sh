@@ -6,7 +6,7 @@ if [ $# -lt 1 ]; then
     echo "Usage: $0 [options] <jobname>"
     echo "  jobname  : base name of the PDF to reorder (jobname.pdf -> jobnameBooklet.pdf)"
     echo "  -v       : verbose output"
-    echo "  -c       : cleanup build files and uninstall packages after build"
+    echo "  -c       : cleanup build files in the output directory after build"
     exit 1
 fi
 
@@ -56,6 +56,6 @@ sides=$(pdfinfo "${jobname}Booklet.pdf" 2>/dev/null | awk '/^Pages:/{print $2}')
 echo "Finished: ${jobname}Booklet.pdf${sides:+ ($((sides / 2)) sheets, $sides printed sides)}"
 
 if [ "$cleanup" -eq 1 ]; then
-    echo "Cleaning build files, uninstalling packages..."
-    "$SCRIPT_DIR/cleanup.sh"
+    echo "Cleaning build files..."
+    "$SCRIPT_DIR/cleanup.sh" .
 fi

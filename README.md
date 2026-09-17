@@ -182,7 +182,19 @@ The most recently defined chorus is the one repeated. Put `\beginchorus` on its 
 \useautochords      % default: each song follows its own language
 ```
 
-Each song's chords are still *read* in its own language — so a Czech `\[H]` is understood as B-natural and *printed* as `B` under `\useenglishchords`, while a Czech `\[B]` (B-flat) prints as `B♭`. Only the printed names change; `\selectlanguage` (hyphenation, quotes) and the index still follow each song's `lang`. The commands also work mid-document, between songs, to switch a section. Note that transliterating across systems routes chords through the transposer, so accidentals are re-spelled to flats by default — add `\prefersharps` if you want sharps.
+Each song's chords are still *read* in its own language — so a Czech `\[H]` is understood as B-natural and *printed* as `B` under `\useenglishchords`, while a Czech `\[B]` (B-flat) prints as `B♭`. Only the printed names change; `\selectlanguage` (hyphenation, quotes) and the index still follow each song's `lang`. The commands also work mid-document, between songs, to switch a section.
+
+Transliterating routes every chord through the transposer, so a chord's accidental is re-spelled to whichever of ♯/♭ is preferred rather than kept as you typed it: an English `\[F#]` prints as `G♭` in a flat-preferring book. A song printed in its own convention is never touched this way — its chords are passed through verbatim.
+
+**Sharps or flats.** `songs` decides per song, from the key it transposes into, which is why its `\prefersharps` in a preamble does not outlive the first song. To pin one spelling for a whole book:
+
+```latex
+\usesharps            % every re-spelled accidental is a sharp
+\useflats             % ... or a flat
+\useautoaccidentals   % default: songs chooses, per song
+```
+
+`\prefersharps` / `\preferflats` keep their `songs` meaning inside a song, for a one-song exception. None of the three affects a song whose chords are printed verbatim — there is nothing to re-spell in a chord nobody parsed.
 
 **Capo.** `\capo{n}` either prints a *Capo n* note (default) or actually transposes the chords by `n` semitones when capo transposition is enabled (the `songs` `transposecapos` option).
 

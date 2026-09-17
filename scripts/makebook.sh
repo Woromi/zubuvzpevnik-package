@@ -7,7 +7,7 @@ if [ $# -lt 1 ]; then
     echo "  jobname   : base name of the PDF to impose (jobname.pdf -> jobnameBook.pdf)"
     echo "  -s sheets : sheets of paper per signature, as a target (default 5)"
     echo "  -v        : verbose output"
-    echo "  -c        : cleanup build files and uninstall packages after build"
+    echo "  -c        : cleanup build files in the output directory after build"
     exit 1
 fi
 
@@ -57,7 +57,12 @@ for ((n = 2; n <= sheets; n += 2)); do
         best=$n
     fi
 done
-[ "$best" -lt 2 ] && best=2
+# The search starts at two signatures, so a book of one sheet finds none.
+if [ "$sheets" -lt 2 ]; then
+    best=1
+elif [ "$best" -lt 2 ]; then
+    best=2
+fi
 nsig=$best
 base=$((sheets / nsig))
 extra=$((sheets % nsig))
@@ -110,6 +115,6 @@ echo "Finished: ${jobname}Book.pdf${sides:+ ($sheets sheets, $sides printed side
 echo "  Print duplex on the short edge, then fold in runs of $planlist sheets."
 
 if [ "$cleanup" -eq 1 ]; then
-    echo "Cleaning build files, uninstalling packages..."
-    "$SCRIPT_DIR/cleanup.sh"
+    echo "Cleaning build files..."
+    "$SCRIPT_DIR/cleanup.sh" .
 fi

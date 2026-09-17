@@ -137,6 +137,33 @@
 }
 
 % ==========================
+% Page padding
+% ==========================
+% Blank pages until the document is a multiple of #1 pages, counted from the
+% page the class started numbering at. #2 runs on each blank page. Both A5
+% classes wrap it -- the book to finish a sheet of paper, the booklet to finish
+% an imposition unit; see docs/internals.md.
+\newcounter{ZUB@fillpages}
+\newcommand{\zub@padpages}[2]{%
+	\clearpage
+	% \value{page} is the page about to be set, so one less is what is done.
+	% \divide truncates, which is what makes this the remainder.
+	\@tempcnta\value{page}\advance\@tempcnta\m@ne
+	\@tempcntb\@tempcnta \divide\@tempcntb by #1\relax \multiply\@tempcntb by #1\relax
+	\advance\@tempcnta-\@tempcntb
+	\ifnum\@tempcnta>\z@
+		\setcounter{ZUB@fillpages}{\numexpr#1-\@tempcnta\relax}%
+	\else
+		\setcounter{ZUB@fillpages}{0}%
+	\fi
+	\loop
+	\ifnum\value{ZUB@fillpages}>0
+		#2\null\newpage
+		\addtocounter{ZUB@fillpages}{-1}%
+	\repeat
+}
+
+% ==========================
 % Features
 % ==========================
 % Language, chord naming, filtering, index sort directive, Czech quotes

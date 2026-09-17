@@ -46,16 +46,29 @@ the front matter onto a third page and break the
 Each project has its own script:
 
 ```bash
-projects/velkyzpevnik/build.sh       # Main A4 songbook → velkyzpevnik.pdf
-projects/malyzpevnik/build.sh        # A5 hardback songbook → malyzpevnik.pdf + malyzpevnikBook.pdf
-projects/tabory/2026/build.sh        # A5 camp songbook → tabor2026.pdf + tabor2026Booklet.pdf
-projects/tinwhistle/build.sh         # Tin whistle sheet music → tinwhistle.pdf
-projects/interpreti/ayreon/build.sh  # Single-artist songbook → ayreon.pdf
+projects/velkyzpevnik/build.sh       # Main A4 songbook → build/velkyzpevnik.pdf
+projects/malyzpevnik/build.sh        # A5 hardback songbook → build/malyzpevnik.pdf + build/malyzpevnikBook.pdf
+projects/tabory/2026/build.sh        # A5 camp songbook → build/tabor2026.pdf + build/tabor2026Booklet.pdf
+projects/tinwhistle/build.sh         # Tin whistle sheet music → build/tinwhistle.pdf
+projects/interpreti/ayreon/build.sh  # Single-artist songbook → build/ayreon.pdf
 ```
 
 Each sets `TEXINPUTS` to reach the package, the shared song database and its own
-directory, then hands off to `scripts/build.sh` with the project's index names.
-Output lands in the current working directory.
+directory, then changes into `build/` and hands off to `scripts/build.sh` with
+the project's index names. `build/` is the only place a build writes, and it is
+not in version control.
+
+`scripts/build.sh` itself writes to the *working* directory, so building
+somewhere else — to compare two PDFs without disturbing `build/`, say — is one
+`cd` away; you then want `build/tmp-ly` linked in, or the scores are engraved
+again from scratch. The repository root is on `TEXINPUTS` so that
+`\graphicspath{{img/}}`, which resolves against the working directory, still
+finds the cover images from wherever the build runs.
+
+The camp years share one script: `projects/tabory/<year>/build.sh` is a two-line
+wrapper that hands its own directory to `projects/tabory/build.sh`, which derives
+the job name from it (`2026` → `tabor2026`) and runs the booklet imposition. A
+new camp needs the wrapper copied and nothing else.
 
 Options, passed through to `scripts/build.sh`:
 
@@ -66,7 +79,7 @@ Options, passed through to `scripts/build.sh`:
 | `-l lang[,…]` | include only songs with those languages |
 | `-e lang[,…]` | exclude songs with those languages |
 | `-o output` | output PDF name, without extension |
-| `-c` | remove build files afterwards |
+| `-c` | remove the build files left in the output directory afterwards |
 | `-s sheets` | *malyzpevnik only* — target sheets per signature (default 5) |
 
 `-l` and `-e` cannot be combined. A song with no `lang` key is kept by `-e` and
@@ -189,6 +202,27 @@ is shown whole instead of being elided with `...`.
 No install step is needed: the package is found through `TEXINPUTS` and locates
 its own LilyPond includes via kpse.
 
+#### What a build leaves behind
+
+Everything a build writes lands in its **working directory**, which for the
+project scripts is `build/`: the PDF, the LaTeX scratch files (`.aux`, `.log`,
+`.sxc`), the `.sxd`/`.sbx` index pair, and `tmp-ly/` — lyluatex's engraving
+cache, which it puts in the working directory rather than next to the package.
+Nothing is written anywhere else in the tree, which is what makes `/build/` a
+sufficient `.gitignore` entry and `rm -rf build` a complete clean.
+
+`scripts/cleanup.sh` removes the scratch files and keeps both the `.sbx`, which
+the next first pass reads, and `tmp-ly`. `-c` hands it the working directory, so
+it clears what that build just made, one level deep and no further. Run it with
+no argument to sweep the whole repository instead — that is the form that
+collects the strays an editor leaves next to a song it compiled.
+
+One thing sits outside all of this: LilyPond 2.24 leaves its intermediate
+PostScript in `$TMPDIR` as `lilypond-tmp-<n>`, roughly 1 MB per engraved score,
+and never removes it. Nothing here deletes those — the names say nothing about
+which build owns them, so a sweep would race a concurrent one — but that is
+where a surprising amount of `/tmp` goes after a few cold builds.
+
 ### Booklet imposition
 
 Camp builds additionally run `scripts/makebooklet.sh`, which calls `pdfbook2`
@@ -207,7 +241,7 @@ class-side warning that diagnoses a break, are in
 | Script | Purpose |
 |---|---|
 | `scripts/makebook.sh` | cut a bound book into signatures and impose each as a booklet (`malyzpevnik`) |
-| `scripts/cleanup.sh` | remove LaTeX build files across the repo (skips `.git`; keeps `.sbx`, which the next first pass wants) |
+| `scripts/cleanup.sh` | remove LaTeX build files — the whole repo, or just the directories named, one level deep ([what a build leaves behind](#what-a-build-leaves-behind)) |
 | `scripts/install.sh` | copy the package into `~/texmf/tex/latex` for use outside this repo |
 | `scripts/uninstall.sh` | remove it again |
 
@@ -269,8 +303,12 @@ missing prerequisite is caught immediately rather than at the next release. The
 apt list lives in `.github/actions/setup-build-env/action.yml` and mirrors the
 one above, so CI also verifies that the documented list stays sufficient.
 
-Engraved scores are cached: `lyluatex` keys `tmp-ly/` by content, so restoring
-the cache skips re-engraving unchanged LilyPond sources. The cache is never
+`malyzpevnik` is deliberately not in that matrix: it is built by the release
+workflow instead, which keeps the per-push cost down at the price of finding a
+break in it — or in `makebook.sh`, which nothing else runs — only at a tag.
+
+Engraved scores are cached: `lyluatex` keys `build/tmp-ly/` by content, so
+restoring the cache skips re-engraving unchanged LilyPond sources. The cache is never
 pruned, so it grows over time.
 
 The camp entries deliberately do **not** set `fonts: true`, so ordinary pushes
@@ -289,8 +327,10 @@ read-only token and no secrets — but it is worth knowing it is there.
 
 ## Releasing
 
-Pushing a version tag builds velkyzpevnik and publishes it as a GitHub release,
-which keeps the README's `releases/latest/download/…` link serving a fresh PDF:
+Pushing a version tag builds velkyzpevnik and malyzpevnik and publishes them as
+a GitHub release, which keeps the README's `releases/latest/download/…` links
+serving fresh PDFs. The hardback contributes two assets, the pages
+(`malyzpevnik.pdf`) and the imposed signatures (`malyzpevnikBook.pdf`):
 
 ```bash
 git tag v2026.06

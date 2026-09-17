@@ -101,6 +101,17 @@ eighth: `B` meaning English B-flat. Two `\patchcmd`s on `\SB@trtrans` add it:
 - **output** — semitone 1 prints `\ZUB@printBb` instead of `\printnoteB\flt`, so
   German/Czech names give `B` rather than the nonsense `Hb`.
 
+A third patch, on `\SB@trnote`, is what makes those two reliable. `songs` folds
+a chord's accidental into the semitone only while transposing; with
+`\SB@transposefactor` at zero it skips the accidental (songs.sty:1891), because
+within one naming system it cannot change. Transliteration is the case where it
+can — the note *letter* moves — so an English `\[B&]`, whose letter maps to `H`,
+used to print as the nonexistent `H♭` instead of German `B`. The shortcut is
+switched off (the test is patched to `\iffalse`), so the `\flt`/`\shrp` branches
+after it always run. The cost is that a transliterated accidental is now
+re-spelled by preference rather than kept verbatim, which is what transposing
+already did.
+
 `songs` reads chords through `\notenamesin` and prints them through
 `\notenamesout`, with the semitone as a language-neutral intermediary. That
 split is what makes `\useenglishchords` and friends possible: a song's chords
@@ -108,6 +119,21 @@ are always *read* in its own language's convention but may be *printed* in
 another, which transliterates. When the two match, `\SB@convertnotesfalse` makes
 `songs` leave chords verbatim, so no enharmonic re-spelling happens — the
 original behaviour.
+
+### Accidental spelling
+
+`\prefersharps` is a `songs` command, and `songs` overrides it per song:
+`\transpose` sets `\SB@needkeytrue` (songs.sty:1811) and `\SB@setkeysig` then
+picks sharps or flats *globally* from the key the song transposes into. So a
+`\prefersharps` in a preamble never survives the first song.
+
+`\usesharps` / `\useflats` / `\useautoaccidentals` pin the choice book-wide, the
+way `\useenglishchords` pins a naming. Two hooks are needed, because the two
+paths that set the preference are different: `\SB@setkeysig` is wrapped so the
+automatic choice yields to a pinned one, and `\SB@@@beginsong` re-asserts it for
+songs that never transpose, where `\SB@setkeysig` is not consulted at all. Both
+assignments are `\global`, as `songs`' own are: a chord is set inside a group
+that the next song must not inherit from.
 
 ### Index sort directive
 
@@ -153,9 +179,11 @@ large paper only, a right-aligned 7 cm `\parbox` of metadata beside it, inside a
 zero-width `\makebox` so it costs no horizontal space.
 
 The macros holding the fragments (`\key`, `\tuning`, `\tempo`, `\original`,
-`\usedchords`, `\sourcelink`) are unprefixed and therefore collision-prone for a
-package meant to be loaded into other documents — worth renaming to `\zub@…` if
-that ever matters.
+`\usedchords`, `\sourcelink`) are unprefixed. `songs` defines none of these — if
+it did, we would be using its version instead of a second one — and each is a
+`\newcommand`, which refuses a name that is already taken, so a collision with
+some other package is a build error naming the macro rather than a silent
+override. Renaming to `\zub@…` is the fix if one ever turns up.
 
 ## Chords (`akordy.cfg`)
 
@@ -179,8 +207,8 @@ goes *inside* `\secondvoicestyle` so it shrinks with the smaller font. `\role`
 is the right-aligned label variant. `\multivoiceoff` (used by the A5 class)
 drops the second voice and keeps only the main line.
 
-`\rolestyle` calls `\setmainfont` on every use; defining the family once with
-`\newfontfamily` would be the idiomatic and cheaper form.
+`\rolestyle` selects a family defined once with `\newfontfamily`; calling
+`\setmainfont` per label would re-read the font each time.
 
 ## Song parts
 
@@ -426,7 +454,9 @@ indexes are at the end: with no restart, an index at the front would move every
 song page number it records and the two passes would never converge.
 
 `\padbookpages` therefore only rounds the whole document up to a multiple of 4,
-so the last sheet of paper is complete. `scripts/makebook.sh` cuts the
+so the last sheet of paper is complete. It and `\padbookletpages` are the same
+loop — `\zub@padpages` in the package, which counts from the page the class
+started numbering at — wrapped differently by each class. `scripts/makebook.sh` cuts the
 signatures out of that page count afterwards: it picks an **even** number of
 signatures as near the target thickness as it can (`-s`, default 5 sheets) and
 gives them sheet counts differing by at most one, so nothing has to be padded
