@@ -84,6 +84,21 @@ phrase; a literal character does not. A language's marks become available once
 its locale is imported, hence the `\babelprovide[import]` calls; un-imported
 languages fall back to English quotes.
 
+It also switches `#` and `&` to their active meanings (`\shrp`, `\flt`) itself,
+in a group around the argument read. `songs` only activates them while it scans
+a chord name — `\SB@bracket` → `\SB@begincname` sets the catcodes, then
+`\SB@@chord` reads up to the `]` — which is late enough for an ordinary lyric
+line, where TeX has not tokenised the rest of the line yet, but too late for
+text already swallowed as a macro argument. Without it, `\enquote{… \[C#m]…}`
+fails with *Illegal parameter number in definition of `\SB@tempv`* (songs.sty:1832,
+the branch a `\transpose`d song takes) because the `#` arrives as a real
+parameter token. `\uv` is `\let` to `\enquote` rather than wrapping it, so it
+does not read the argument one level too early and lose the same trick.
+
+Any other macro taking lyric text as an argument has the same constraint —
+`\multivoice` among them, though songs there keep their chords outside the
+argument. Spelling the accidental as `\[C\shrp m]` works everywhere regardless.
+
 ### Note names: the eighth note
 
 Two naming systems are in play:
