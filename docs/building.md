@@ -303,9 +303,11 @@ missing prerequisite is caught immediately rather than at the next release. The
 apt list lives in `.github/actions/setup-build-env/action.yml` and mirrors the
 one above, so CI also verifies that the documented list stays sufficient.
 
-`malyzpevnik` is deliberately not in that matrix: it is built by the release
-workflow instead, which keeps the per-push cost down at the price of finding a
-break in it — or in `makebook.sh`, which nothing else runs — only at a tag.
+`malyzpevnik` earns its place in that matrix twice over: `makebook.sh` and
+`\insertusedchords` are exercised by no other build. Only its pages are
+uploaded, though — the imposed `malyzpevnikBook.pdf` is 7 MB against the 500 MB
+artifact quota, and what tests the imposition is building it, not keeping it.
+The release workflow publishes both.
 
 Engraved scores are cached: `lyluatex` keys `build/tmp-ly/` by content, so
 restoring the cache skips re-engraving unchanged LilyPond sources. The cache is never
