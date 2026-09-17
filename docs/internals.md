@@ -497,6 +497,45 @@ booklet fits the hardback book and the mark means one thing; editing it makes
 every A5 mark in the database stale. It warns if a class loads it on a page
 that is not A5.
 
+### The A5 body size
+
+The A5 body is **9 pt**, one step below the 10 pt the classes hand `book`, set
+in `a5layout.cfg` as `\zub@lyricfont` = `\smaller[0.5]\ttfamily`. A song needing
+more room asks with `\smalleronsmallpage`, which is then 8 pt.
+
+It was 10 pt until 2026-09-17, with each tight song shrinking itself. That put
+three sizes in one book — 80 songs at 10 pt, 27 at 9 pt, 5 at 8 pt — which is
+what the change is against; it buys uniformity, not room.
+
+**`\smaller[n]`'s argument is magsteps, not points and not sizes on the ladder.**
+`relsize` rounds `n` to whole *half*-magsteps and multiplies by 0.912871
+(= 1/&radic;1.2) that many times, then snaps the result to the nearest standard
+LaTeX size if it lands within 5 %. From a 10 pt base: `[0.5]` targets 9.129 and
+snaps to **9 pt**, `[1]` targets 8.333 and snaps to **8 pt**, `[2]` targets
+6.944 and snaps to **7 pt**. So two `[0.5]`s in a row give 10 &rarr; 9 &rarr; 8,
+not 10 &rarr; 9.5 &rarr; 9. From the 9 pt base now in force,
+`\smalleronsmallpage` is 8 pt and `[1]` targets 7.5, which is 6.7 % from both 7
+and 8 — outside the tolerance — so it emits a literal `\fontsize{7.5}`.
+
+Dropping the base by one size therefore meant dropping one notch off every
+song's own lever: 29 `\smalleronsmallpage` lines deleted (the base now does that
+job) and 5 `[1]` weakened to plain. That is why no song changed size but the 80
+that carried no lever.
+
+**The base is `\small`, not `\smaller[0.5]`, and the difference is not
+cosmetic.** `\lyricfont` is applied a second time inside `\printversenum`
+(`sloka.cfg`), where the ambient size is already the verse's. A *relative* size
+compounds there, so `\smaller[0.5]` set the lyrics at 9 pt and the verse numbers
+at 8 pt — one step smaller than the `R:` chorus label beside them, which comes
+through a different path. `\small` is absolute and gives 9 pt in both. Anything
+put in `\zub@lyricfont` has to be absolute for that reason.
+
+Nothing else moved: same 128 pages, the same songs fit, and the A4 book is
+unchanged, `\smalleronsmallpage` being a no-op on large paper. Two tin-whistle
+songs newly fit and gained the mark. Re-measured with
+`scripts/checkpaper.py --measure a5 --write` afterwards, as editing this file
+always requires.
+
 `\campyear` defaults to the build year and is pinned per book
 (`\renewcommand{\campyear}{2026}`) so old songbooks rebuild unchanged.
 

@@ -231,7 +231,7 @@ The boolean `\iflargepaper` (true in the A4 class, false in the A5 booklet) driv
 
 | Command / env | Effect |
 |---------------|--------|
-| `\smalleronsmallpage[frac]` | Shrinks its line on small paper only (default factor `0.5`). |
+| `\smalleronsmallpage[frac]` | Shrinks its line on small paper only (default factor `0.5`). The A5 body is already 9 pt, so the bare form gives 8 pt — see [the A5 body size](../docs/internals.md#the-a5-body-size). |
 | `\chordsoffonsmallpage` | Inside a part: keeps its chords on large paper, drops them on small. |
 | `\begin{narrowonlargepaper} … \end{...}` | On large paper, sets the content in a narrower (80 %) column; full width otherwise. |
 | `\narrowtextnote{…}` | A `\textnote` wrapped in `narrowonlargepaper`. |
@@ -240,7 +240,10 @@ The boolean `\iflargepaper` (true in the A4 class, false in the A5 booklet) driv
 ### Which songs fit which paper
 
 Fitting A4 is not fitting A5, and the helpers above are how a song is tightened
-until it does. Reach for `\chordsoffonsmallpage` before `\smalleronsmallpage`:
+until it does. The A5 body is set one step below A4 to begin with (9 pt against
+10 pt), so most songs need no lever at all and the book reads at one size;
+`\smalleronsmallpage` is for the few that still overflow, and takes them to
+8 pt. Reach for `\chordsoffonsmallpage` before `\smalleronsmallpage`:
 a part that reprints chords an earlier part already showed costs a chord line
 above every lyric line, and dropping those buys back about as much room as a
 whole font step without making anything harder to read.
