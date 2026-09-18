@@ -23,7 +23,7 @@
 \RequirePackage[linktoc=all]{hyperref}
 \RequirePackage{bookmark}
 \RequirePackage{calc}
-\RequirePackage[fragment=false,pass-fonts,language=Czech]{lyluatex}
+\RequirePackage[fragment=false,pass-fonts,language=english]{lyluatex}
 \RequirePackage{xstring}
 
 % ==========================
@@ -38,6 +38,18 @@
     lua_options.set_option("ly", "includepaths",
       cur == "" and dir or cur .. "," .. dir)
   end
+}
+
+% ==========================
+% LilyPond note names
+% ==========================
+% Czech and Slovak songs get German note names, everything else English;
+% see docs/internals.md#package-setup.
+\let\ZUB@lilypondfile\lilypondfile
+\renewcommand{\lilypondfile}[1]{%
+	\IfSubStr{,czech,slovak,}{,\SB@songlang,}%
+		{\ZUB@lilypondfile[language=deutsch]{#1}}%
+		{\ZUB@lilypondfile{#1}}%
 }
 
 % ==========================

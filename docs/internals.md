@@ -96,6 +96,32 @@ lyluatex's `includepaths`. That is what lets a song fragment write
 works identically whether the package came from `TEXINPUTS` or `~/texmf`. It
 appends rather than replaces, so a host document's own include paths survive.
 
+**LilyPond note names.** A fragment never names its own language.
+`\lilypondfile` is wrapped to read `\SB@songlang` and hand lyluatex
+`language=deutsch` for `lang={czech}` and `lang={slovak}`, leaving the package
+default `english` for everything else. So each `.ly` is written in the names its
+song prints: `h` and `b` for B and B flat in a Czech song, `b` and `bf` in an
+English one. There is no `czech` to ask for — LilyPond has no such language, and
+Czech note names are the German ones anyway. `english` spells accidentals `s`
+and `f`, so a sharp is `fs`, not `fis`.
+
+`zubuvzpevnik.ily` derives the *printed* names from that same setting instead of
+each fragment asking for them: an `h` in `pitchnames` means the fragment is in
+German names, so `chordRootNamer` becomes the German one (H, B) and otherwise
+stays the default (B, B♭). `\germanChords` is the stock way to ask for this, and
+two things are wrong with it here. It has to stand *inside* the `ChordNames`
+context — at top level it parses as a score of its own and is dropped with a
+*zero-duration score* warning. And it also sets `chordNoteNamer`, which spells
+bass notes lowercase and with `is`/`es` rather than glyphs (`G/h`, `H7/dis`);
+LilyPond's own source marks that `lowercase?` is ignored as a FIXME. Leaving
+`chordNoteNamer` unset makes bass notes fall back to `chordRootNamer`, which
+gives the `G/H` and `H7/D♯` the songs print in their own chord lines.
+
+A fragment moved between songs of different languages has to be respelled, and
+nothing checks that — it parses either way and simply sounds wrong. Engraving it
+before and after with chord names hidden and comparing the bitmaps is the way to
+tell.
+
 ## Localisation (`lokalizace.cfg`)
 
 ### Quotes

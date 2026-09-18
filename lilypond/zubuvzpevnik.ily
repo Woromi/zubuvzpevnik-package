@@ -14,6 +14,12 @@ strokeDown = \markup\combine\arrow-head #Y #DOWN ##f \override #'(thickness . 1.
 
   \context {
     \ChordNames {
+      % H and B when the fragment is parsed in German note names, B and Bb
+      % otherwise. Bass notes are left to fall back to this namer: \germanChords
+      % would spell them "G/h"; the book prints G/H.
+      \set chordRootNamer = #(if (assq 'h pitchnames)
+                                 (chord-name->german-markup #t)
+                                 note-name->markup)
       \set chordChanges = ##t
       \override ChordName.font-series = #'bold
       \override ChordName.font-size = #0
