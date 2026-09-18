@@ -9,7 +9,7 @@ if [ $# -lt 1 ]; then
     echo "  -e lang[,...] : exclude songs with given language(s)"
     echo "  -o output     : output PDF filename (without extension)"
     echo "  -v            : verbose output"
-    echo "  -c            : cleanup build files in the output directory after build"
+    echo "  -c            : cleanup build files, in the output directory and beside the .tex"
     exit 1
 fi
 
@@ -154,5 +154,10 @@ echo "Finished: $jobname.pdf${pages:+ ($pages pages)}"
 
 if [ "$cleanup" -eq 1 ]; then
     echo "Cleaning build files..."
-    "$SCRIPT_DIR/cleanup.sh" .
+    # The document's own directory too: latexindent and an editor-run build
+    # leave strays beside the .tex that never reach the output directory.
+    texdir="$(cd "$(dirname "$texfile")" && pwd)"
+    cleandirs=(.)
+    [ "$texdir" = "$PWD" ] || cleandirs+=("$texdir")
+    "$SCRIPT_DIR/cleanup.sh" "${cleandirs[@]}"
 fi

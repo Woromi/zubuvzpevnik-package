@@ -79,7 +79,7 @@ Options, passed through to `scripts/build.sh`:
 | `-l lang[,…]` | include only songs with those languages |
 | `-e lang[,…]` | exclude songs with those languages |
 | `-o output` | output PDF name, without extension |
-| `-c` | remove the build files left in the output directory afterwards |
+| `-c` | remove the build files afterwards, in the output directory and beside the `.tex` |
 | `-s sheets` | *malyzpevnik only* — target sheets per signature (default 5) |
 
 `-l` and `-e` cannot be combined. A song with no `lang` key is kept by `-e` and
@@ -211,10 +211,12 @@ Nothing is written anywhere else in the tree, which is what makes `/build/` a
 sufficient `.gitignore` entry and `rm -rf build` a complete clean.
 
 `scripts/cleanup.sh` removes the scratch files and keeps both the `.sbx`, which
-the next first pass reads, and `tmp-ly`. `-c` hands it the working directory, so
-it clears what that build just made, one level deep and no further. Run it with
-no argument to sweep the whole repository instead — that is the form that
-collects the strays an editor leaves next to a song it compiled.
+the next first pass reads, and `tmp-ly`. `-c` hands it the working directory and
+the directory the `.tex` came from, one level deep and no further. The second of
+those is not where a build writes: it collects what latexindent and an
+editor-run build leave beside the document, which would otherwise sit there
+until someone swept the tree. Run `cleanup.sh` with no argument for that sweep —
+the recursive form, which also reaches the strays left next to a song.
 
 One thing sits outside all of this: LilyPond 2.24 leaves its intermediate
 PostScript in `$TMPDIR` as `lilypond-tmp-<n>`, roughly 1 MB per engraved score,
