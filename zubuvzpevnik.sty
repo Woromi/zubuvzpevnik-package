@@ -53,6 +53,15 @@
 }
 
 % ==========================
+% LilyPond spacing
+% ==========================
+% Air around an engraved score, which lyluatex leaves to these two hooks; see
+% docs/internals.md#package-setup.
+\newcommand{\zub@lilypondsep}{\medskipamount}
+\newcommand{\preLilyPondExample}{\par\addvspace{\zub@lilypondsep}}
+\newcommand{\postLilyPondExample}{\par\addvspace{\zub@lilypondsep}}
+
+% ==========================
 % Fonts
 % ==========================
 \babelfont{rm}{Open Sans}

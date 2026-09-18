@@ -122,6 +122,16 @@ nothing checks that — it parses either way and simply sounds wrong. Engraving 
 before and after with chord names hidden and comparing the bitmaps is the way to
 tell.
 
+**Air around a score.** lyluatex wraps every engraved system in
+`\preLilyPondExample` and `\postLilyPondExample` and leaves both undefined,
+which is why a score otherwise butts straight against the lines above and below
+it. The package defines them as `\addvspace{\zub@lilypondsep}`, a class
+overridable in the `\zub@…` family like the fonts. A4 carries `\medskipamount`
+without costing any song its one-page fit. A5 has next to none to spare — the
+songs with scores sit right at the edge there — so `a5layout.cfg` drops it to a
+token `1pt`; `scripts/checkpaper.py --measure a5` is what says whether a larger
+value still fits.
+
 ## Localisation (`lokalizace.cfg`)
 
 ### Quotes
