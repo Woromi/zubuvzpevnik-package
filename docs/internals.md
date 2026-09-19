@@ -85,9 +85,15 @@ things load later:
   papers.
 
 **Styling hooks.** The package defines `\zub@lyricfont`, `\zub@printchord`,
-`\zub@stitlefont` and `\zub@meterfont` as internal defaults and wires them into
-the `songs` hooks (`\lyricfont` and friends). Classes override the `\zub@…`
-versions, so restyling never touches the package.
+`\zub@stitlefont`, `\zub@meterfont` and `\zub@repfont` as internal defaults and
+wires them into the `songs` hooks (`\lyricfont` and friends). Classes override
+the `\zub@…` versions, so restyling never touches the package.
+
+`\zub@repfont` has no `songs` hook to wire into, so `\rep` is redefined outright
+to `({\zub@repfont ×n})`: a repeat count is read rather than sung, and bold sets
+it apart from the lyric it trails the way chords and the `R:` marker are set
+apart. The times sign has to be the body font's own — `songs`' is `\char2` of
+cmsy, a font with no bold series, so it stays light however it is wrapped.
 
 **LilyPond include path.** A `\directlua` block asks kpse where
 `zubuvzpevnik.sty` was found and appends that directory's `lilypond/` to

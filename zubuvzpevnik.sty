@@ -89,6 +89,12 @@
 \newcommand{\zub@printchord}{\ttfamily}
 \newcommand{\zub@stitlefont}{}
 \newcommand{\zub@meterfont}{\ttfamily}
+\newcommand{\zub@repfont}{\bfseries}
+% A repeat count is read, not sung, so it is set like a chord rather than like
+% the lyric it trails. The times sign is the body font's, not songs.sty's cmsy
+% one, which has no bold. See docs/internals.md#chords-akordycfg.
+\renewcommand{\rep}[1]{({\zub@repfont\symbol{"00D7}#1})}
+
 \newif\iflargepaper
 \largepaperfalse % default (A5 or smaller)
 % Paper this book is typeset on, matched against each song's pap key
