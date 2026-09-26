@@ -138,6 +138,16 @@ songs with scores sit right at the edge there — so `a5layout.cfg` drops it to 
 token `1pt`; `scripts/checkpaper.py --measure a5` is what says whether a larger
 value still fits.
 
+**Tab stems.** `zubuvzpevnik.ily` draws tablature the way tab sites do: every
+stem starts half a staff space below the bottom line and runs a fixed
+`Stem.length` of 4 half-spaces, which ends it on the beam line
+(`Beam.positions` −5). Two LilyPond details force the shape of it. The overrides
+ride inside a redefined `\tabFullNotation`, because that command reverts
+`Stem.length` and would undo a plain `\layout` override. And a beamed stem
+ignores `stem-begin-position`, so a `Stem.stencil` wrapper cuts beamed stems off
+at the same height; unbeamed ones keep `tabvoice::draw-double-stem-for-half-notes`
+and its half-note double stem.
+
 ## Localisation (`lokalizace.cfg`)
 
 ### Quotes

@@ -55,12 +55,8 @@
 	\thispagestyle{empty}%
 	\null\vfill
 	\begin{center}
-		{\Huge\bfseries\@title\par}
-		\vspace{1cm}
-		\ifblank{#1}{}{\includegraphics[width=0.8\linewidth]{#1}\par\vspace{1cm}}%
-		{\large\@author\par}
-		\vspace{6pt}
-		{\large\@date\par}
+		{\fontsize{34}{40}\selectfont\bfseries\@title\par}
+		\ifblank{#1}{}{\vspace{1cm}\includegraphics[width=0.8\linewidth]{#1}\par}%
 	\end{center}
 	\vfill\null
 	\clearpage
@@ -70,6 +66,25 @@
 	\if@twoside
 		\ifodd\c@page\else\thispagestyle{empty}\null\newpage\fi
 	\fi
+}
+
+% The imprint (tiráž), on the last page as Czech books have it: who, when, how,
+% in small type at the foot. It sets no page of its own -- \bindingleaf[\makeimprint]
+% puts it on the back leaf's free face. \imprintnote adds a line of your own.
+\newcommand{\zub@imprintnote}{}
+\newcommand{\imprintnote}[1]{\def\zub@imprintnote{#1}}
+\newcommand{\makeimprint}{%
+	\null\vfill
+	{\small\raggedright
+		\textbf{\@title}\par
+		Sestavil: \@author\par
+		Vydání: \@date\par
+		\ifx\zub@imprintnote\@empty\else\zub@imprintnote\par\fi
+		\medskip
+		{\footnotesize Vysázeno v~LuaLaTeXu (balík songs), notové ukázky v~LilyPondu.\par
+		Texty a~akordy patří jejich autorům; zpěvník je určen k~soukromému
+		použití.\par}%
+	}%
 }
 
 % ==========================
@@ -100,9 +115,11 @@
 % side facing the reader is stuck to it and never turns. One blank leaf (two
 % pages) at each end keeps content off it. Harmless if separate endpapers are
 % used instead -- it is then the flyleaf. See docs/internals.md.
-\newcommand{\bindingleaf}{%
+% The optional argument fills the leaf's first page, which only at the back is
+% the face left visible -- where the imprint goes. At the front it is glued.
+\newcommand{\bindingleaf}[1][]{%
 	\clearpage
-	\thispagestyle{empty}\null\newpage
+	\thispagestyle{empty}\null#1\newpage
 	\thispagestyle{empty}\null\newpage
 }
 

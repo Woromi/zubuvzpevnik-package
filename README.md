@@ -297,7 +297,7 @@ Set these (usually in a class or the preamble) to restyle without touching the p
 | `\zub@stitlefont` | Song-title font. |
 | `\zub@meterfont` | Meter font. |
 | `\setchordwidth{…}` | Fixed chord width in `instrumental`. |
-| `\bindingleaf` | One blank leaf (two pages); `malyzpevnik` only. The hand-bound case is glued to the outer leaf at each end, so it must carry nothing — see [the hardback book](../docs/internals.md#the-hardback-book-signatures-instead-of-one-booklet). |
+| `\bindingleaf[content]` | One blank leaf (two pages); `malyzpevnik` only. The hand-bound case is glued to the outer side of the leaf at each end, so that side carries nothing. The optional content goes on the leaf's first page, which is the visible face only on the back leaf — that is where the imprint goes — see [the hardback book](../docs/internals.md#the-hardback-book-signatures-instead-of-one-booklet). |
 | `\secondvoiceraise` | Second-voice vertical tuck (multi-voice). |
 | `\rolestyle`, `\secondvoicestyle` | Fonts/colors for role labels and the second voice. |
 
@@ -325,8 +325,12 @@ multi-voice off — with `taborovyzpevnik` through `a5layout.cfg`, so a song
 marked `pap={a4,a5}` fits both. What differs is everything around the songs:
 
 - `\maketitlepage` — the first page *inside* the book (there is no printed
-  case), with the document `\title`/`\author`/`\date`. `\maketitlepage[image]`
-  prints an image under the title.
+  case), with the document `\title`; `\maketitlepage[image]` prints an image
+  under it.
+- `\makeimprint` — the imprint (*tiráž*): title, `\author`, `\date` as the
+  edition and a note on how it was typeset, in small type at the foot.
+  `\bindingleaf[\makeimprint]` puts it on the visible face of the back leaf,
+  so it costs no page. `\imprintnote{…}` before it adds a line of your own.
 - `\insertindex` — both indexes, one column, meant to be called at the **end**.
 - `\padbookpages[n]` — pad with blank pages up to a multiple of `n` (default 4)
   so the last sheet of paper is complete; `scripts/makebook.sh` cuts the
