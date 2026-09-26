@@ -377,6 +377,20 @@ goes *inside* `\secondvoicestyle` so it shrinks with the smaller font. `\role`
 is the right-aligned label variant. `\multivoiceoff` (used by the A5 class)
 drops the second voice and keeps only the main line.
 
+`\multivoiceinline` prints `main (second)` on one line. Songs often split a
+second voice across chords (`\[D]{\multivoice{}{should we be}}\[Am]{\multivoice{}{lieve you?}}`),
+and each fragment lands in its own chord `\vbox`, so TeX can't see the next one
+when it closes the paren. The parens (and any space `\multivoice` inserted
+before one) carry the `\zub@mvattr` attribute instead, and `lua/hlasy.lua`
+runs in `pre_linebreak_filter`: walking only the lyric row of each chord box, it
+deletes every `)`…`(` pair with no lyric glyph between them and shrinks the
+boxes they sat in. Other lyric content splits too, though it isn't a glyph: a
+measure bar (a `\vrule` in its box's last row) and filler spacing such as `~`
+(`\nobreak` + space). A chord over no lyric ends in the same `\nobreak` +
+space (`\SB@emitchord`), so after a chord box with an empty lyric row that pair
+is the chord's, not filler. A space typed at the end of the second voice is moved
+outside the `)` so the join keeps the word gap (`It's my `+`life`).
+
 `\rolestyle` selects a family defined once with `\newfontfamily`; calling
 `\setmainfont` per label would re-read the font each time.
 

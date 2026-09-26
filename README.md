@@ -147,7 +147,7 @@ A right-aligned **role label** (e.g. for a duet or call-and-response) is `\role`
 \role{Soprano}{Alto}      % both, the second one grayed (only if multi-voice is on)
 ```
 
-Multi-voice can be switched per document with `\multivoiceon` / `\multivoiceoff` (the A5 camp class turns it off by default — the second voice is dropped and only the main line is kept). Tunables: `\secondvoiceraise` (how far the second voice tucks up under the main line, default `2pt`), `\rolestyle`, `\secondvoicestyle`. Defined in `feature/hlasy.cfg`.
+Multi-voice can be switched per document with `\multivoiceon` / `\multivoiceoff` (the A5 camp class turns it off by default — the second voice is dropped and only the main line is kept). `\multivoiceinline` keeps the second voice on the main line instead, in parentheses and `\secondvoicestyle` — `main (second)`; fragments with nothing but chords and plain spaces between them are joined into one `(…)`; anything else between them — lyrics, a measure bar, filler spacing — keeps them apart. Tunables: `\secondvoiceraise` (how far the second voice tucks up under the main line, default `2pt`), `\rolestyle`, `\secondvoicestyle`. Defined in `feature/hlasy.cfg`.
 
 ## Repeating the chorus
 
