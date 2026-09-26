@@ -189,7 +189,9 @@ def check_song(path, info):
     cap = keys.get("cap", "").strip()
     if "cap" in keys and not CAPO_VALUE.fullmatch(cap):
         issues.append((Severity.ERROR, f"cap={{{cap}}} is not a fret number like cap={{2}}"))
-    if "met" not in keys and song_kind(path) != "tinwhistle" and MEASURE_BAR.search(info["text"]):
+    # A song whose meter changes states each one with \meter in the body.
+    if ("met" not in keys and "\\meter{" not in info["text"]
+            and song_kind(path) != "tinwhistle" and MEASURE_BAR.search(info["text"])):
         issues.append((Severity.WARN, "measure bars but no met: the first bar shows no meter"))
 
     issues.extend(check_rendering(info))

@@ -59,8 +59,8 @@ Keys go in the optional `[...]` argument of `\beginsong`. All are optional excep
 | `key` | Musical key — see below. |
 | `tun` | Instrument tuning. A uniform detuning (`E\flat A\flat D\flat G\flat B\flat E\flat`, or `Half-step down`) transposes every shape you finger, so it counts towards `key`; a drop tuning like `D A D G B E` retunes one string and does not. |
 | `tem` | Tempo. |
-| `met` | Meter, e.g. `3/4`; shown at the song's first measure bar. No `met` shows none (not `songs`' default 4/4); a mid-song change is still `\meter{n}{d}`. |
-| `cap` | Capo fret, e.g. `2`; the same as `\capo{2}` at the top of the song. A capo moved mid-song is still `\capo{n}` there. |
+| `met` | Meter, e.g. `3/4`; shown at the song's first measure bar. No `met` shows none (not `songs`' default 4/4). A song whose meter changes has no `met`: every meter, the first included, is a `\meter{n}{d}` in the body where it applies. |
+| `cap` | Capo fret, e.g. `2`; the same as `\capo{2}` at the top of the song. A song whose capo moves has no `cap`: every `\capo{n}`, the first included, stays in the body. |
 | `ori` | Original song (for covers / translations). |
 | `chr` | Chords used, shown above the song (e.g. `\gtab` diagrams). |
 | `src` | Source URL (typeset as a link). |
