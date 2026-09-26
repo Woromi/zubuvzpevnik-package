@@ -617,6 +617,17 @@ first "line", and a reminder built from it printed nothing but `...`. Lua
 returns the line with `tex.sprint(-2, …)`, as the same catcode-12 string
 `\detokenize` made.
 
+**Numbered choruses.** `\beginchorus[n]` reads its bracket with `\@ifnextchar`
+*before* the grab switches catcodes, and records `n` in `\zub@chorusnum`. After
+the capture the string and its first line are also copied, globally, to
+`zub@chorus@<songnum>@<n>` and `…@<n>first`: keyed by `songs`' own song counter,
+so a number never reaches into another song and nothing has to be cleared.
+The **R:** label reads `\zub@chorus@label`, set only around the typesetting of a
+chorus or a repeat — `\SB@everypar` places the label at the first line, inside
+that window. The unnumbered "latest chorus" strings are cleared from a hook on
+`\SB@@@beginsong`; before that, a song's `\insertchorus` reprinted the previous
+song's chorus.
+
 ## Document classes and booklet page maths
 
 All three classes load the package, set `geometry` margins, override the

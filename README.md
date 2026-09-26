@@ -170,7 +170,19 @@ The captured chorus can be reprinted later without retyping it:
 \insertchorus*    % => "R:  Refrén první řádek..."
 ```
 
-The most recently defined chorus is the one repeated. Put `\beginchorus` on its own line. (Defined in `feature/refren.cfg`.)
+The most recently defined chorus of the song is the one repeated; a song starts with none, so a repeat never reaches back into the previous song. Put `\beginchorus` on its own line. (Defined in `songpart/refren.cfg`.)
+
+**Several choruses.** A song with two different choruses numbers them: `\beginchorus[1]` … `\beginchorus[2]` (or `\begin{chorus}[2]`) print as **R1:** and **R2:**, and `\insertchorus[2]` / `\insertchorus*[2]` repeat chorus 2 by number. A plain `\insertchorus` still repeats the most recent one, with its number. Numbering is opt-in: a chorus that comes back with new words is still the same chorus, so an unnumbered one stays **R:**, and writing `\beginchorus[2]` again replaces what chorus 2 repeats.
+
+```latex
+\beginchorus[1]
+\[C]První refrén
+\endchorus
+\beginchorus[2]
+\[G]Druhý refrén
+\endchorus
+\insertchorus*[1]   % => "R1:  První refrén..."
+```
 
 ## Chords
 

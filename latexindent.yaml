@@ -10,3 +10,10 @@ specialBeginEnd:
         begin: '\\begin(?!\{)(?!song\b)[a-zA-Z]+\*?'
         end:   '\\end(?!\{)(?!song\b)[a-zA-Z]+\*?'
         lookForThis: 1
+# Commands are looked for before song parts, so \beginchorus[2] or a verse whose
+# first line opens with ^{...} was read as a command with arguments and never
+# indented. \beginX/\endX are song parts, not commands -- \beginsong excepted,
+# whose [...] prelude is indented as a command's argument.
+fineTuning:
+    commands:
+        name: '(?!begin(?!song)|end(?!song))[+a-zA-Z@\*0-9_\:]+?'
