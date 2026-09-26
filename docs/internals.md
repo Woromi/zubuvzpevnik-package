@@ -608,9 +608,14 @@ Both `\zub@chorusstr` and `\zub@chorusfirststr` are stored **globally**:
 closes, and a local assignment would not outlive it — the symptom was
 `\insertchorus*` silently printing nothing after an environment-form chorus.
 
-`\zub@chorus@extractfirst` splits the stored string on catcode-12 CR to find the
-first source line, skipping the empty leading segment the `\beginchorus`-line
-newline produces.
+`\zub@chorus@extractfirst` hands the stored string to `lua/refren.lua`, which
+splits it on the catcode-12 CR and returns the first line that carries text
+once control words and brace groups are set aside. That skips the empty segment
+the `\beginchorus`-line newline produces and, as importantly, a line of setup
+alone: `\beginchorus\chordsoffonsmallpage` leaves `\chordsoffonsmallpage` as the
+first "line", and a reminder built from it printed nothing but `...`. Lua
+returns the line with `tex.sprint(-2, …)`, as the same catcode-12 string
+`\detokenize` made.
 
 ## Document classes and booklet page maths
 
