@@ -74,6 +74,7 @@ while the character silently vanishes.
 | `\[N.C.]` written out | warning | the `C` is a note name, so a `\transpose` moves it — use `\[\nochord]` |
 | `Bb`-style flat in a bass note, `\[C/Bb]` | warning | the same, after the slash |
 | B♭ as `B&`/`B\flt`, or `H`, against the song's naming | error | see below |
+| a chord (`\[…]`, `^`) inside a `\multivoice` voice | error | it belongs right before: `^{\multivoice{…}{…}}` |
 
 **B and H.** Czech and Slovak songs are read in German naming, as their chords
 print: `B` is B♭ and `H` is B♮. An English B♭ (`B&`, `B\flt`) in such a song is

@@ -409,6 +409,18 @@ space (`\SB@emitchord`), so after a chord box with an empty lyric row that pair
 is the chord's, not filler. A space typed at the end of the second voice is moved
 outside the `)` so the join keeps the word gap (`It's my `+`life`).
 
+The second voice's size is relative: 90 % of the surrounding size, with
+110 % leading, which at the 10 pt A4 lyric is exactly `\small` (9/11 pt) — A4
+renders as it always did, while on A5 it follows `\smalleronsmallpage`. Two
+traps: `relsize`'s `\smaller` jumps two sizes from inside a song (10 → 8 pt),
+and `\fontsize` reads its leading argument only at `\selectfont`, after
+`\f@size` has dropped, so both numbers are computed with an `\edef` first.
+
+`\multivoice` settles its mode before typesetting either voice. A chord replay
+`^` inside a voice (`\multivoice{^}{right}` in *Day Seven: Hope*) starts the
+`songs` chord reader, which reads ahead through a still-pending `\else`/`\fi`
+and broke with *Extra \else* whenever multi-voice was off.
+
 `\rolestyle` selects a family defined once with `\newfontfamily`; calling
 `\setmainfont` per label would re-read the font each time.
 

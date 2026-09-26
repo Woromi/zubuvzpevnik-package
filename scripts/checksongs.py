@@ -55,6 +55,12 @@ GTAB_NAME = re.compile(r"\\gtab\{([^}]*)\}")
 NOTE_B_FLAT = re.compile(r"(?:^|/)B(?:&|b|\\flt)")
 NOTE_H = re.compile(r"(?:^|/)H")
 
+# --- Chords inside a second voice ------------------------------------------------
+# A chord belongs in front of the voices, ^{\multivoice{..}{..}}: inside one it is
+# placed within that voice's box, and the chord reader it starts reads ahead.
+MULTIVOICE = re.compile(r"\\multivoice\{([^{}]*)\}\{([^{}]*)\}")
+CHORD_MARK = re.compile(r"\^|\\\[")
+
 # --- What counts as a song key ---------------------------------------------
 # This repo's keys plus the songs built-ins; anything else is a possible typo.
 CUSTOM_KEYS = {"lang", "key", "tun", "tem", "met", "cap", "ori", "chr", "src", "pap"}
@@ -273,6 +279,18 @@ def check_naming(info):
     return issues
 
 
+def check_multivoice(info):
+    """A chord inside either voice of \\multivoice; it goes right before it."""
+    issues = []
+    for lineno, line in enumerate((info.get("text") or "").splitlines(), 1):
+        for m in MULTIVOICE.finditer(line):
+            if CHORD_MARK.search(m.group(1) + m.group(2)):
+                issues.append((Severity.ERROR,
+                               f"chord inside {m.group(0)} - put it before: "
+                               f"^{{\\multivoice{{..}}{{..}}}}  [line {lineno}]"))
+    return issues
+
+
 def song_kind(path):
     return "tinwhistle" if "tinwhistle" in path.parts else "chords"
 
@@ -329,6 +347,7 @@ def check_song(path, info):
 
     issues.extend(check_rendering(info))
     issues.extend(check_naming(info))
+    issues.extend(check_multivoice(info))
     return issues
 
 
