@@ -30,6 +30,7 @@ NOTE_DE = {"C": 0, "D": 2, "E": 4, "F": 5, "G": 7, "A": 9, "B": 10, "H": 11}
 
 CAPO_RE = re.compile(r"(?:\\capo|\bcap=)\{(\d+)\}")
 TUN_RE = re.compile(r"tun=\{([^}]*)\}")
+LARGEPAPER_RE = re.compile(r"\\iflargepaper(.*?)(?:\\else.*?)?\\fi", re.S)
 # A key={} field may name several keys when the song modulates: "Cm -> C".
 KEY_SPLIT_RE = re.compile(r"\s*(?:→|->|/|,|;)\s*")
 # Standard guitar tuning, low to high, as pitch classes.
@@ -102,9 +103,10 @@ def parse_chord(tok, german):
     return (pc, is_minor(rest))
 
 
-def parse_tuning(val):
+def parse_tuning(val, german=False):
     """Semitone shift a tuning applies to every chord shape, or 0 for a drop
-    tuning. String names are read as English, as the corpus spells them."""
+    tuning. String names follow the song's naming, as chord names do: in a
+    Czech song B is B-flat and H is B-natural (checksongs.py enforces it)."""
     if val is None:
         return 0
     name = " ".join(val.replace("\\", " ").split()).lower()
@@ -112,7 +114,7 @@ def parse_tuning(val):
         return NAMED_TUNINGS[name]
     notes = []
     for tok in val.split():
-        pc, rest = parse_note(tok, german=False)
+        pc, rest = parse_note(tok, german=german)
         if pc is None or rest.strip():
             return 0                    # not a plain list of string names
         notes.append(pc)
@@ -197,11 +199,14 @@ def key_name(spec):
 def load(path):
     text = path.read_text(encoding="utf-8", errors="replace")
     text = strip_comments(text)
+    # key={} names one key for every paper, so read the A4 variant only: an
+    # A5 branch may re-finger the song with a capo of its own.
+    text = LARGEPAPER_RE.sub(r"\1", text)
     german = bool(re.search(r"lang=\{(czech|slovak)\}", text))
     capo_m = CAPO_RE.search(text)
     capo = int(capo_m.group(1)) if capo_m else 0
     tun_m = TUN_RE.search(text)
-    tuning = parse_tuning(tun_m.group(1) if tun_m else None)
+    tuning = parse_tuning(tun_m.group(1) if tun_m else None, german)
     key_m = re.search(r"key=\{([^}]*)\}", text)
     stated_raw = key_m.group(1) if key_m else None
     stated_all = parse_key_fields(stated_raw, german) if stated_raw else []

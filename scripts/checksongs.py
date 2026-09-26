@@ -13,6 +13,7 @@ import csv
 import os
 import re
 import sys
+import unicodedata
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -39,9 +40,20 @@ PREFER_SONGS_ACCIDENTAL = {r"\flat": r"\flt", r"\sharp": r"\shrp"}
 # `Bb` typesets as the literal letters, and checkkeys.py reads the b as quality.
 ASCII_FLAT_KEY = re.compile(r"(?<![A-Za-z])([A-H])b")
 ASCII_FLAT_CHORD = re.compile(r"\\\[([A-H])b")
+ASCII_FLAT_BASS = re.compile(r"\\\[[^\]]*/([A-H])b")
 
 # Written out, the C in N.C. is read as a note name and transposed with the rest.
 SPELLED_NOCHORD = re.compile(r"\\\[\s*N\.?\s*C\.?\s*\]")
+
+# --- B and H ------------------------------------------------------------------
+# Czech and Slovak songs are read in German naming (lokalizace.cfg): B is B-flat,
+# H is B-natural. An English B-flat there reads as B-double-flat, and an H in an
+# English song is no note at all -- both silently wrong, so both are errors.
+GERMAN_LANGS = {"czech", "slovak"}
+CHORD_GROUP = re.compile(r"\\\[([^\]]*)\]")
+GTAB_NAME = re.compile(r"\\gtab\{([^}]*)\}")
+NOTE_B_FLAT = re.compile(r"(?:^|/)B(?:&|b|\\flt)")
+NOTE_H = re.compile(r"(?:^|/)H")
 
 # --- What counts as a song key ---------------------------------------------
 # This repo's keys plus the songs built-ins; anything else is a possible typo.
@@ -127,8 +139,10 @@ def check_rendering(info):
         issues.append((Severity.WARN,
                        f"key={{{key}}} spells a flat as 'b' - use \\flt so it prints as a flat sign"))
     roots = sorted(set(ASCII_FLAT_CHORD.findall(text)))
-    if roots:
-        spelled = ", ".join(f"\\[{r}b...]" for r in roots)
+    basses = sorted(set(ASCII_FLAT_BASS.findall(text)))
+    if roots or basses:
+        spelled = ", ".join([f"\\[{r}b...]" for r in roots]
+                            + [f"\\[.../{b}b]" for b in basses])
         issues.append((Severity.WARN,
                        f"chord spells a flat as 'b' ({spelled}) - use & so songs.sty "
                        "prints a flat sign"))
@@ -137,6 +151,125 @@ def check_rendering(info):
         issues.append((Severity.WARN,
                        "no-chord mark is spelled out - use \\[\\nochord], or the C is "
                        f"read as a note and transposed with the song  [{n}x]"))
+    return issues
+
+
+# --- Typo hints (--typos) ------------------------------------------------------
+# A word the whole songbook uses once, one letter away from a word it uses
+# often, is usually a slip: dětsví/dětství, zbávené/zbavené. A difference in the
+# last two letters is an inflection far more often (smutný/smutně), so it is
+# ignored, as is a different letter altogether. See docs/tools.md.
+TYPO_MIN_LEN = 5
+TYPO_TWIN_MIN = 4                 # uses of the likely-correct spelling
+LYRIC_WORD = re.compile(r"[^\W\d_]+(?:'[^\W\d_]+)*")
+
+
+def lyric_words(text):
+    """The sung words of a comment-stripped song, lowercased."""
+    text = re.sub(r"\\beginsong\{.*?\n\]", " ", text, count=1, flags=re.S)
+    text = re.sub(r"\\\[[^\]]*\]", "", text)         # chords
+    text = re.sub(r"\\[a-zA-Z@]+\*?", " ", text)       # macro names
+    text = text.replace("^", "").replace("~", " ")
+    return [w.lower() for w in LYRIC_WORD.findall(text)]
+
+
+def _bare(ch):
+    return unicodedata.normalize("NFD", ch)[0]
+
+
+def _slip(rare, common):
+    """True if the words differ the way a slip of the keyboard does: a diacritic
+    alone (sťastná/šťastná), a doubled letter (neeed/need), or a lost or extra
+    letter inside the word (dětsví/dětství). A different letter altogether
+    (kopec/konec), or a change in the last two letters (smutný/smutně), is far
+    more often another word or an inflection."""
+    if abs(len(rare) - len(common)) > 1:
+        return False
+    i = 0
+    while i < min(len(rare), len(common)) and rare[i] == common[i]:
+        i += 1
+    if len(rare) == len(common):
+        return (i < len(rare) - 1 and _bare(rare[i]) == _bare(common[i])
+                and rare[i + 1:] == common[i + 1:])
+    longer, shorter = (rare, common) if len(rare) > len(common) else (common, rare)
+    if longer[i + 1:] != shorter[i:]:
+        return False
+    doubled = (i > 0 and longer[i] == longer[i - 1]) or longer[i:i + 2] == longer[i] * 2
+    return doubled or 0 < i < len(longer) - 2
+
+
+def _english_unknown(words):
+    """The words aspell does not know, or all of them if aspell is missing."""
+    import shutil
+    import subprocess
+    if not shutil.which("aspell"):
+        return set(words)
+    out = subprocess.run(["aspell", "--lang=en", "list"], input="\n".join(words),
+                         capture_output=True, text=True).stdout
+    return set(out.split())
+
+
+def typo_hints(parsed_all):
+    """{path: [(rare word, likely spelling)]} across the whole songbook. In an
+    English song a word the dictionary knows is no slip (grave/gave)."""
+    from collections import Counter
+    words = {f: lyric_words(info["text"]) for f, info in parsed_all if info["text"]}
+    corpus = Counter(w for ws in words.values() for w in ws)
+    common = [w for w, n in corpus.items() if n >= TYPO_TWIN_MIN]
+    by_len = {}
+    for w in common:
+        by_len.setdefault(len(w), []).append(w)
+    hints = {}
+    for f, ws in words.items():
+        for w in sorted(set(ws)):
+            if len(w) < TYPO_MIN_LEN or corpus[w] > 1:
+                continue
+            twins = [c for n in (len(w) - 1, len(w), len(w) + 1)
+                     for c in by_len.get(n, []) if _slip(w, c)]
+            if twins:
+                hints.setdefault(f, []).append((w, max(twins, key=corpus.get)))
+    english = [f for f, info in parsed_all
+               if info["keys"].get("lang", "").strip() == "english" and f in hints]
+    unknown = _english_unknown(sorted({w for f in english for w, _ in hints[f]}))
+    for f in english:
+        hints[f] = [(w, c) for w, c in hints[f] if w in unknown]
+        if not hints[f]:
+            del hints[f]
+    return hints
+
+
+def check_naming(info):
+    """B/H spelled for the song's naming, in chords, diagrams, key= and tun=."""
+    issues = []
+    text = info.get("text") or ""
+    german = info["keys"].get("lang", "").strip() in GERMAN_LANGS
+    wrong = NOTE_B_FLAT if german else NOTE_H
+    fix = ("B-flat is plain B in Czech naming (B& reads as B-double-flat)" if german
+           else "H is Czech naming; an English song writes B")
+    found = {}                    # spelling -> [first line, count]
+    for lineno, line in enumerate(text.splitlines(), 1):
+        names = [c for g in CHORD_GROUP.findall(line) for c in g.split()]
+        names += GTAB_NAME.findall(line)
+        for name in names:
+            if wrong.search(name):
+                found.setdefault(name, [lineno, 0])[1] += 1
+    for name, (lineno, count) in sorted(found.items()):
+        times = "" if count == 1 else f", {count}x"
+        issues.append((Severity.ERROR, f"chord {name}: {fix}  [line {lineno}{times}]"))
+    key = info["keys"].get("key", "")
+    if key and wrong.search(key.strip()):
+        issues.append((Severity.ERROR, f"key={{{key}}}: {fix}"))
+    tun = info["keys"].get("tun", "").split()
+    if german:
+        flats = [t for t in tun if "\\flt" in t or "\\shrp" in t]
+        if any(NOTE_B_FLAT.match(t) for t in tun):
+            issues.append((Severity.ERROR, f"tun: {fix}"))
+        elif "B" in tun and not flats:
+            # among natural strings a bare B is meant as B-natural
+            issues.append((Severity.ERROR, "tun: a B-natural string is H in Czech naming "
+                                           "(B reads as B-flat)"))
+    elif "H" in tun:
+        issues.append((Severity.ERROR, f"tun: {fix}"))
     return issues
 
 
@@ -195,6 +328,7 @@ def check_song(path, info):
         issues.append((Severity.WARN, "measure bars but no met: the first bar shows no meter"))
 
     issues.extend(check_rendering(info))
+    issues.extend(check_naming(info))
     return issues
 
 
@@ -230,6 +364,8 @@ def main():
     ap.add_argument("--no-orphans", action="store_true", help="skip the unreferenced-song check")
     ap.add_argument("--csv", action="store_true", help="emit CSV of all metadata instead of a report")
     ap.add_argument("--strict", action="store_true", help="exit non-zero on warnings too")
+    ap.add_argument("--typos", action="store_true",
+                    help="also hint at likely lyric typos (a heuristic; see docs/tools.md)")
     args = ap.parse_args()
 
     repo_root = Path(__file__).resolve().parent.parent
@@ -249,6 +385,12 @@ def main():
     if args.missing:
         missing_filter = [s.strip() for s in args.missing.split(",") if s.strip()]
 
+    typos = {}
+    if args.typos:
+        # The comparison needs the whole songbook, not just the paths scanned.
+        everything = [(f, parse_song(f)) for f in collect_song_files([repo_root / "songs"])]
+        typos = typo_hints(everything)
+
     n_err = n_warn = n_clean = 0
     field_present = {k: 0 for k in ALL_FIELDS}
 
@@ -265,6 +407,8 @@ def main():
             continue
 
         issues = check_song(f, info)
+        issues += [(Severity.WARN, f"'{w}' is used nowhere else - typo for '{c}'?")
+                   for w, c in typos.get(f, [])]
         errs = [i for i in issues if i[0] == Severity.ERROR]
         warns = [i for i in issues if i[0] == Severity.WARN]
         n_err += len(errs)

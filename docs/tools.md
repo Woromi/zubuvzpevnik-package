@@ -1,10 +1,10 @@
 # Developer tools
 
-Three tools under `scripts/`. None of them affects the build; all are
-conveniences for after adding songs and before a release. The first two never
-edit files; `checkpaper.py` does only when asked with `--write`.
+Five tools under `scripts/`. None of them affects the build; all are
+conveniences for after adding songs and before a release. Only `checkpaper.py`
+ever edits files, and only when asked with `--write`.
 
-All three read song files through one module, `scripts/songfile.py` — comment
+All of them read song files through one module, `scripts/songfile.py` — comment
 stripping, brace matching, the `\beginsong` prelude and finding the files — so
 they cannot drift apart in what they think a song says. It holds no policy: what
 counts as a problem lives in the tool that reports it.
@@ -15,6 +15,10 @@ counts as a problem lives in the tool that reports it.
   written
 - [`checkpaper.py`](#checkpaperpy--paper-fit) — `pap={}` versus what actually
   fits on a page, and how the books lay the pages out
+- [`checklyrics.py`](#checklyricspy--lyrics-against-the-web) — the lyrics
+  against lyric and chord sites
+- [`checkorder.py`](#checkorderpy--book-order) — a book's song order against
+  its title index
 
 ## `checksongs.py` — metadata
 
@@ -68,6 +72,25 @@ while the character silently vanishes.
 | `\flat`, `\sharp` | warning | render, but not the way the chords do |
 | `Bb`-style flat in `key={}` or `\[Bb…]` | warning | typesets as the literal letters |
 | `\[N.C.]` written out | warning | the `C` is a note name, so a `\transpose` moves it — use `\[\nochord]` |
+| `Bb`-style flat in a bass note, `\[C/Bb]` | warning | the same, after the slash |
+| B♭ as `B&`/`B\flt`, or `H`, against the song's naming | error | see below |
+
+**B and H.** Czech and Slovak songs are read in German naming, as their chords
+print: `B` is B♭ and `H` is B♮. An English B♭ (`B&`, `B\flt`) in such a song is
+read as B♭♭, and an `H` in an English song is no note at all, so either is an
+error — in chords, `\gtab` diagram names, `key={}` and `tun={}`. In a Czech
+`tun={}` a bare `B` among flattened strings is the B♭ string of a half-step-down
+guitar; among natural strings (`D A D G B E`) it was meant as B♮ and has to be
+`H`.
+
+**Typo hints** (`--typos`, off by default). A sung word the whole songbook uses
+once, while a spelling that differs from it by a slip of the keyboard is used
+four times or more: a diacritic alone (*sťastná*/*šťastná*), a doubled letter
+(*neeed*), or a lost or extra letter inside the word (*dětsví*/*dětství*). A
+different letter altogether (*kopec*/*konec*) or a change in the last two
+letters (*smutný*/*smutně*) is far more often another word or an inflection and
+is not reported, and in an English song a word `aspell` knows is skipped too.
+It is a hint, not a check: Slovak lines and names show up among real slips.
 
 `\rightarrow` and `$\rightarrow$` both *do* render — they resolve through the
 math font — which is why the house spelling for a modulation is
@@ -114,8 +137,12 @@ shifted before they can be scored:
 - **`tun={}`** counts only when the detuning is *uniform*: a half-step-down
   guitar transposes every shape you finger, so a fingered `Am` sounds `G♯m`. A
   drop tuning like `D A D G B E` retunes one string and the shapes still sound
-  as written, so it shifts nothing. String names are read as English (B = B♮),
-  which is how the corpus spells them even in Czech songs.
+  as written, so it shifts nothing. String names follow the song's naming,
+  as its chords do — in a Czech song `B` is B♭ and `H` is B♮, which
+  `checksongs.py` enforces.
+- **Paper variants:** only the A4 branch of `\iflargepaper…\else…\fi` is read.
+  `key={}` is one key for every paper, and an A5 branch may re-finger the song
+  with a capo of its own.
 - **Note naming** follows `lang`: Czech and Slovak read H = B♮ and B = B♭.
 
 ### `\transpose` is block-scoped
@@ -372,3 +399,38 @@ book, since a book cannot say where a song stopped and its blank page began.
 
 It reproduces the real books: the 2025 camp booklet's two-page songs come out on
 sheets 10–11 and 30–31, which is where they are in `tabor2025.pdf`.
+
+## `checklyrics.py` — lyrics against the web
+
+`scripts/checklyrics.py SONG.tex …` fetches the song from lyric and chord
+sites (velkyzpevnik.cz, Genius, AZLyrics, a lyrics API, akordy.kytary.cz,
+pisnicky-akordy.cz and the song's own `src=`) and compares the sung words, word
+by word, with each page that holds the song. It prints only the words that
+differ, with two words of context and the file's line — never the lyrics.
+
+Every site gets one vote, the song's own source included: a tab is as often
+where a mistake came from as where it was checked, so it is not the reference.
+A difference is shown when at least `--min` sites (default 2) agree on it;
+`--min 1` shows what a single site says too, which is a lead to check by ear,
+not a finding. `--url` adds a page of your own.
+
+What it reads is the A5 variant (the `\else` branch of `\iflargepaper`), the
+chords and the markup removed. A page matching the song less than half is
+ignored — it is another song, a menu page or a bot check. Differences longer
+than five words are verses the book leaves out and are not listed; apostrophes,
+fillers (*oh*, *yeah*, *na na*) and the chord names and section labels a site
+sets among the words are ignored too. Spelling styles (*dreamin'*/*dreaming*,
+*sem*/*jsem*) do show up: they are variants, the decision is yours.
+
+## `checkorder.py` — book order
+
+`scripts/checkorder.py PROJECT.tex …` checks that a book prints its songs in
+the order its title index lists them. It does not reimplement the sort: it
+feeds the project's titles to `songidx.lua` with the same Czech locale
+`buildindex.sh` uses, so Czech collation and the rotated English articles
+(*The Bards Song* under B) come out exactly as in the printed index. Each pair
+the book has the wrong way round is reported. A deliberate exception is marked
+on the `\input` of the song the book puts first — `\input{Ayreon/DaySixChildhood}
+% checkorder: ok` keeps *Day Six* ahead of *Day Seven*, as the numbers go. A book ordered on purpose some
+other way, such as an album's track order, reports every step it takes.
+
