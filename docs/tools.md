@@ -46,7 +46,8 @@ deliberate cleanup pass, when you want the whole backlog to show up as failure.
 ones — `pap` is deliberately not among them, since a song that fits nothing
 correctly has none); unknown keys, which are almost always typos; `lang` values outside the
 recognised set; `pap` values outside the paper sizes the classes know, which
-would silently match nothing; and structural damage such as a missing
+would silently match nothing; a `met`/`cap` that is not `n/d` / a fret number;
+measure bars with no `met`, whose first bar would then show no meter; and structural damage such as a missing
 `\endsong`. The tiers, the language list and the paper list are constants at
 the top of the script — edit them when introducing a new language or paper.
 
@@ -107,7 +108,7 @@ after touching any of the rules below.
 shifted before they can be scored:
 
 - **`\transpose`** is applied the way `songs.sty` does it — see below.
-- **`\capo{n}`** adds *n* semitones. The projects do not enable the `songs`
+- **`cap={n}`** / **`\capo{n}`** adds *n* semitones. The projects do not enable the `songs`
   `transposecapos` option, so capo is a separate axis and the `\[chord]` shapes
   are what you actually finger.
 - **`tun={}`** counts only when the detuning is *uniform*: a half-step-down

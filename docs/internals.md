@@ -300,6 +300,14 @@ fixed order. `\makeprelude` is redefined to put the title on the left and, on
 large paper only, a right-aligned 7 cm `\parbox` of metadata beside it, inside a
 zero-width `\makebox` so it costs no horizontal space.
 
+`met` and `cap` are not display fragments: their macros (`\zub@songmeter`,
+`\zub@songcapo`) run from a hook appended to `\SB@@@beginsong`, inside the song
+box, where a top-of-song `\meter`/`\capo` would have run. The hook has to come
+after that macro's own `\meter44` (songs.sty `\SB@@@beginsong`), which is why a
+song without `met` gets an explicit `\meter{}{}`: otherwise every song with
+measure bars would show 4/4 at its first bar whether it is in 4/4 or not.
+`checksongs.py` warns on a song with bars and no `met`.
+
 The macros holding the fragments (`\key`, `\tuning`, `\tempo`, `\original`,
 `\usedchords`, `\sourcelink`) are unprefixed. `songs` defines none of these — if
 it did, we would be using its version instead of a second one — and each is a

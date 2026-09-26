@@ -28,7 +28,7 @@ NAMES_SHARP = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 NOTE_EN = {"C": 0, "D": 2, "E": 4, "F": 5, "G": 7, "A": 9, "B": 11, "H": 11}
 NOTE_DE = {"C": 0, "D": 2, "E": 4, "F": 5, "G": 7, "A": 9, "B": 10, "H": 11}
 
-CAPO_RE = re.compile(r"\\capo\{(\d+)\}")
+CAPO_RE = re.compile(r"(?:\\capo|\bcap=)\{(\d+)\}")
 TUN_RE = re.compile(r"tun=\{([^}]*)\}")
 # A key={} field may name several keys when the song modulates: "Cm -> C".
 KEY_SPLIT_RE = re.compile(r"\s*(?:→|->|/|,|;)\s*")

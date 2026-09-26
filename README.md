@@ -31,8 +31,8 @@ A song is the standard `songs` `\beginsong … \endsong`, with the extra metadat
     by={Artist Name},
     lang={english},
     key={Em},
+    cap={2},
 ]
-\capo{2}
 
 \beginverse
 \[Em]Lyrics with chords \[G]inline,
@@ -59,16 +59,18 @@ Keys go in the optional `[...]` argument of `\beginsong`. All are optional excep
 | `key` | Musical key — see below. |
 | `tun` | Instrument tuning. A uniform detuning (`E\flat A\flat D\flat G\flat B\flat E\flat`, or `Half-step down`) transposes every shape you finger, so it counts towards `key`; a drop tuning like `D A D G B E` retunes one string and does not. |
 | `tem` | Tempo. |
+| `met` | Meter, e.g. `3/4`; shown at the song's first measure bar. No `met` shows none (not `songs`' default 4/4); a mid-song change is still `\meter{n}{d}`. |
+| `cap` | Capo fret, e.g. `2`; the same as `\capo{2}` at the top of the song. A capo moved mid-song is still `\capo{n}` there. |
 | `ori` | Original song (for covers / translations). |
 | `chr` | Chords used, shown above the song (e.g. `\gtab` diagrams). |
 | `src` | Source URL (typeset as a link). |
 | `pap` | Paper sizes the song fits **one page** of, e.g. `a4,a5`, or **two facing pages** of with the `x2` suffix, e.g. `a5x2`. Prints nothing. No key means none; see below. |
 
-`key`/`tun`/`tem`/`ori`/`chr`/`src`/`pap` are defined in `feature/metadata.cfg`; `lang` in `feature/lokalizace.cfg`. On large paper they are laid out in a box beside the title (see `\makeprelude`); on small paper they are omitted.
+`key`/`tun`/`tem`/`met`/`cap`/`ori`/`chr`/`src`/`pap` are defined in `feature/metadata.cfg`; `lang` in `feature/lokalizace.cfg`. On large paper they are laid out in a box beside the title (see `\makeprelude`); on small paper they are omitted. `met` and `cap` are not in that box: they act at the start of the song body on every paper.
 
 ### Writing the `key`
 
-**It names the key the song *sounds* in** — the shapes you finger, shifted by any global `\transpose`, by `\capo{n}`, and by a uniform `tun`. A song fingered in `Em` shapes with `\capo{4}` is `key={G\shrp m}`, not `key={Em}`; one fingered in `Am` shapes on a half-step-down guitar is `key={G\shrp m}` too.
+**It names the key the song *sounds* in** — the shapes you finger, shifted by any global `\transpose`, by `cap`/`\capo{n}`, and by a uniform `tun`. A song fingered in `Em` shapes with `cap={4}` is `key={G\shrp m}`, not `key={Em}`; one fingered in `Am` shapes on a half-step-down guitar is `key={G\shrp m}` too.
 
 **Note names follow the song's `lang`**, exactly as chord names do — so B-natural minor is `key={Hm}` in a Czech song and `key={Bm}` in an English one. Getting this wrong is easy and silent: `key={Bm}` in a Czech song reads as B-flat minor.
 
@@ -196,7 +198,7 @@ Transliterating routes every chord through the transposer, so a chord's accident
 
 `\prefersharps` / `\preferflats` are the one-song exception, and outrank the book-wide setting. They hold for the rest of the song wherever you put them — above or below `\transpose` / `\capo` — and do not leak into the next song. None of the three affects a song whose chords are printed verbatim — there is nothing to re-spell in a chord nobody parsed.
 
-**Capo.** `\capo{n}` either prints a *Capo n* note (default) or actually transposes the chords by `n` semitones when capo transposition is enabled (the `songs` `transposecapos` option).
+**Capo.** `cap={n}` / `\capo{n}` either prints a *Capo n* note (default) or actually transposes the chords by `n` semitones when capo transposition is enabled (the `songs` `transposecapos` option).
 
 **No chord.** `\[\nochord]` marks a spot where nothing is played — it prints *N.C.* Write the macro, not the letters: in `\[N.C.]` the `C` is a note name like any other, so a song with a `\transpose` prints it transposed (*N.A♯* and so on).
 

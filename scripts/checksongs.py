@@ -45,7 +45,7 @@ SPELLED_NOCHORD = re.compile(r"\\\[\s*N\.?\s*C\.?\s*\]")
 
 # --- What counts as a song key ---------------------------------------------
 # This repo's keys plus the songs built-ins; anything else is a possible typo.
-CUSTOM_KEYS = {"lang", "key", "tun", "tem", "ori", "chr", "src", "pap"}
+CUSTOM_KEYS = {"lang", "key", "tun", "tem", "met", "cap", "ori", "chr", "src", "pap"}
 BUILTIN_KEYS = {"by", "cr", "li", "index", "ititle"}
 KNOWN_KEYS = CUSTOM_KEYS | BUILTIN_KEYS
 
@@ -53,6 +53,12 @@ KNOWN_KEYS = CUSTOM_KEYS | BUILTIN_KEYS
 REQUIRED = ["by"]
 RECOMMENDED_CHORDS = ["lang", "key", "tem", "tun"]
 RECOMMENDED_TINWHISTLE = ["key", "tem"]  # instrumental: lang/tun not expected
+
+# met={3/4} and cap={2}; see zubuvzpevnik/feature/metadata.cfg.
+METER_VALUE = re.compile(r"\d+/\d+")
+CAPO_VALUE = re.compile(r"\d+")
+# A measure bar; the first one in a song shows met, or nothing without it.
+MEASURE_BAR = re.compile(r"(?<!\\)\|")
 
 # Recognised languages; anything else is flagged as a likely typo.
 KNOWN_LANGS = {
@@ -66,7 +72,7 @@ KNOWN_LANGS = {
 KNOWN_PAPERS = {"a4", "a5", "a5x2"}
 
 # Fields shown (in this order) in --csv output and the completeness table.
-ALL_FIELDS = ["by", "lang", "key", "tem", "tun", "ori", "chr", "src", "pap"]
+ALL_FIELDS = ["by", "lang", "key", "tem", "met", "cap", "tun", "ori", "chr", "src", "pap"]
 
 
 class Severity:
@@ -176,6 +182,15 @@ def check_song(path, info):
     if bad_paper:
         issues.append((Severity.WARN, "unknown paper in pap: " + ", ".join(bad_paper)
                        + " (known: " + ", ".join(sorted(KNOWN_PAPERS)) + ")"))
+
+    met = keys.get("met", "").strip()
+    if "met" in keys and not METER_VALUE.fullmatch(met):
+        issues.append((Severity.ERROR, f"met={{{met}}} is not a meter like met={{3/4}}"))
+    cap = keys.get("cap", "").strip()
+    if "cap" in keys and not CAPO_VALUE.fullmatch(cap):
+        issues.append((Severity.ERROR, f"cap={{{cap}}} is not a fret number like cap={{2}}"))
+    if "met" not in keys and song_kind(path) != "tinwhistle" and MEASURE_BAR.search(info["text"]):
+        issues.append((Severity.WARN, "measure bars but no met: the first bar shows no meter"))
 
     issues.extend(check_rendering(info))
     return issues
