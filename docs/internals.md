@@ -302,6 +302,20 @@ it reflows 40 pages of A4. Note `\SB@colorbox` pads with a hardcoded `\kern3\p@`
 rather than `\fboxsep` under the `noshading` option all our classes pass, so
 `\fboxsep` is not the knob it looks like.
 
+### PDF bookmarks
+
+songs.sty bookmarks each song at level 1, or at level 2 once `\c@section` is
+non-zero, so that songs under a `\songsection` nest beneath it. But every index
+title is itself a numbered `\songsection` (article) or `\songchapter` (book),
+so a book that shows its indexes first had every song filed under the last
+index: under "Obsah podle interpreta" on A4, under "Obsah" in the camp book.
+
+`\songtarget` is wrapped to take the level itself. `\SB@displayindex` records
+`\c@section` after each index title; a song nests (level 2) only if a section
+has been started since, which is what the Ayreon book's album headings do.
+Otherwise it takes the index title's own level, 1 in article and 0 in book, so
+songs and indexes are siblings. Only the outline changes; the pages do not.
+
 ## Metadata (`metadata.cfg`)
 
 Each optional key (`key`, `tun`, `tem`, `ori`, `chr`, `src`) is a `\newsongkey`
