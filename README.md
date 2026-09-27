@@ -149,7 +149,7 @@ A right-aligned **role label** (e.g. for a duet or call-and-response) is `\role`
 \role{Soprano}{Alto}      % both, the second one grayed (only if multi-voice is on)
 ```
 
-Multi-voice can be switched per document with `\multivoiceon` / `\multivoiceoff` (the A5 camp class turns it off by default — the second voice is dropped and only the main line is kept). `\multivoiceinline` keeps the second voice on the main line instead, in parentheses and `\secondvoicestyle` — `main (second)`; fragments with nothing but chords and plain spaces between them are joined into one `(…)`; anything else between them — lyrics, a measure bar, filler spacing — keeps them apart. The second voice is set at 90 % of the line it belongs to, so `\smalleronsmallpage` shrinks it along with the main text. Tunables: `\secondvoiceraise` (how far the second voice tucks up under the main line, default `2pt`), `\rolestyle`, `\secondvoicestyle` (colour and size) and `\secondvoicecolor` (the grey alone, used by the role labels, which keep their own size). Defined in `feature/hlasy.cfg`.
+Multi-voice can be switched per document with `\multivoiceon` / `\multivoiceoff` (the A5 camp class turns it off by default — the second voice is dropped and only the main line is kept). `\multivoiceinline` keeps the second voice on the main line instead, in parentheses and `\secondvoicestyle` — `main (second)` (`\multivoiceinlineonsmallpage` does so on A5 only, keeping A4 stacked); fragments with nothing but chords and plain spaces between them are joined into one `(…)`; anything else between them — lyrics, a measure bar, filler spacing — keeps them apart. The second voice is set at 90 % of the line it belongs to, so `\smalleronsmallpage` shrinks it along with the main text. Tunables: `\secondvoiceraise` (how far the second voice tucks up under the main line, default `2pt`), `\rolestyle`, `\secondvoicestyle` (colour and size) and `\secondvoicecolor` (the grey alone, used by the role labels, which keep their own size). Defined in `feature/hlasy.cfg`.
 
 ## Repeating the chorus
 
@@ -247,6 +247,7 @@ The boolean `\iflargepaper` (true in the A4 class, false in the A5 booklet) driv
 |---------------|--------|
 | `\smalleronsmallpage[frac]` | Shrinks its line on small paper only (default factor `0.5`). The A5 body is already 9 pt, so the bare form gives 8 pt — see [the A5 body size](../docs/internals.md#the-a5-body-size). |
 | `\chordsoffonsmallpage` | Inside a part: keeps its chords on large paper, drops them on small. |
+| `\multivoiceinlineonsmallpage` | Second voice inline, `main (second)`, on small paper only; large paper keeps it stacked. |
 | `\begin{narrowonlargepaper} … \end{...}` | On large paper, sets the content in a narrower (80 %) column; full width otherwise. |
 | `\narrowtextnote{…}` | A `\textnote` wrapped in `narrowonlargepaper`. |
 | `\narrowlilypondfile{…}` | A `\lilypondfile` wrapped in `narrowonlargepaper`. |

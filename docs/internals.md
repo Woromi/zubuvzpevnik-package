@@ -393,7 +393,9 @@ brace group, and TeX strips the outer braces off a macro argument before
 under the main line rather than sitting a full small-line below it. The `\strut`
 goes *inside* `\secondvoicestyle` so it shrinks with the smaller font. `\role`
 is the right-aligned label variant. `\multivoiceoff` (used by the A5 class)
-drops the second voice and keeps only the main line.
+drops the second voice and keeps only the main line. The three switches set one
+mode, `\zub@mvmode` (0 off, 1 stacked, 2 inline), a `\chardef` so `\multivoice`
+and `\role` can branch on it with `\ifcase` and no number terminator.
 
 `\multivoiceinline` prints `main (second)` on one line. Songs often split a
 second voice across chords (`\[D]{\multivoice{}{should we be}}\[Am]{\multivoice{}{lieve you?}}`),
@@ -615,24 +617,28 @@ naming the offending line rather than a runaway argument.
 recursive (accumulating into a token register and re-grabbing on a foreign
 `\end`) would remove it; no song has ever needed it.
 
-Both `\zub@chorusstr` and `\zub@chorusfirststr` are stored **globally**:
+`\zub@chorusstr` is stored **globally**:
 `\begin{chorus}` runs inside a group of LaTeX's making that `\end{chorus}`
 closes, and a local assignment would not outlive it — the symptom was
 `\insertchorus*` silently printing nothing after an environment-form chorus.
 
-`\zub@chorus@extractfirst` hands the stored string to `lua/refren.lua`, which
-splits it on the catcode-12 CR and returns the first line that carries text
-once control words and brace groups are set aside. That skips the empty segment
-the `\beginchorus`-line newline produces and, as importantly, a line of setup
+`\insertchorus*` hands the stored string to `zubchorus.reminder` in
+`lua/refren.lua`, which builds the whole reminder there: it splits the string on
+the catcode-12 CR and takes the first line that carries text once control words
+and brace groups are set aside, then drops the repeat marks, puts the `...`
+before a trailing `\role` and prefixes `\chordsoff`. The marks are matched as
+`\detokenize` spells them, with a space after each control word (`\lrep ~`,
+`\rrep `). Taking the first line *with text* skips the empty segment the
+`\beginchorus`-line newline produces and, as importantly, a line of setup
 alone: `\beginchorus\chordsoffonsmallpage` leaves `\chordsoffonsmallpage` as the
 first "line", and a reminder built from it printed nothing but `...`. Lua
 returns the line with `tex.sprint(-2, …)`, as the same catcode-12 string
-`\detokenize` made.
+`\detokenize` made, replayed like a full chorus.
 
 **Numbered choruses.** `\beginchorus[n]` reads its bracket with `\@ifnextchar`
 *before* the grab switches catcodes, and records `n` in `\zub@chorusnum`. After
-the capture the string and its first line are also copied, globally, to
-`zub@chorus@<songnum>@<n>` and `…@<n>first`: keyed by `songs`' own song counter,
+the capture the string is also copied, globally, to
+`zub@chorus@<songnum>@<n>`: keyed by `songs`' own song counter,
 so a number never reaches into another song and nothing has to be cleared.
 The **R:** label reads `\zub@chorus@label`, set only around the typesetting of a
 chorus or a repeat — `\SB@everypar` places the label at the first line, inside

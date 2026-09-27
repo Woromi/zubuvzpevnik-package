@@ -152,6 +152,10 @@
 	\iflargepaper\else\chordsoff\fi
 }
 
+\newcommand{\multivoiceinlineonsmallpage}{%
+	\iflargepaper\else\multivoiceinline\fi
+}
+
 \newenvironment{narrowonlargepaper}{%
 	\iflargepaper
 		\par\noindent
@@ -201,6 +205,13 @@
 		\addtocounter{ZUB@fillpages}{-1}%
 	\repeat
 }
+
+% Loads lua/#1.lua beside this package; Lua code lives in files because
+% \directlua expands its argument as TeX.
+\newcommand{\zub@loadlua}[1]{\directlua{
+  local sty = kpse.find_file("zubuvzpevnik.sty")
+  if sty then dofile(sty:match("(.*/)") .. "lua/#1.lua") end
+}}
 
 % ==========================
 % Features
