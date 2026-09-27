@@ -310,11 +310,16 @@ title is itself a numbered `\songsection` (article) or `\songchapter` (book),
 so a book that shows its indexes first had every song filed under the last
 index: under "Obsah podle interpreta" on A4, under "Obsah" in the camp book.
 
-`\songtarget` is wrapped to take the level itself. `\SB@displayindex` records
-`\c@section` after each index title; a song nests (level 2) only if a section
-has been started since, which is what the Ayreon book's album headings do.
-Otherwise it takes the index title's own level, 1 in article and 0 in book, so
-songs and indexes are siblings. Only the outline changes; the pages do not.
+The level comes from one macro, `\zub@songlevel`, patched into both places
+songs.sty computes it: the bookmark in `\SB@endsong` and the index entry in
+`\SB@addtoindex`. Both are needed because songs.sty also puts the level into the
+name of a song's link target (`song1-5.1`), so an index written with the old
+level links to an anchor that no longer exists, and the viewer falls through to
+the last page. `\SB@displayindex` records `\c@section` after each index title; a
+song nests (level 2) only if a section has been started since, which is what the
+Ayreon book's album headings do. Otherwise it takes the index title's own
+level, 1 in article and 0 in book, so songs and indexes are siblings. Only the
+outline changes; the pages do not.
 
 ## Metadata (`metadata.cfg`)
 
