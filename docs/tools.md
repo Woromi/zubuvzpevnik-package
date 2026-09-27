@@ -75,6 +75,7 @@ while the character silently vanishes.
 | `Bb`-style flat in a bass note, `\[C/Bb]` | warning | the same, after the slash |
 | B♭ as `B&`/`B\flt`, or `H`, against the song's naming | error | see below |
 | a chord (`\[…]`, `^`) inside a `\multivoice` voice | error | it belongs right before: `^{\multivoice{…}{…}}` |
+| a `\gtab` diagram with no finger numbers | warning | the merged chord chart shows them side by side, so a bare one stands out; add them after a colon, `\gtab{Am}{X02210:002310}` |
 
 **B and H.** Czech and Slovak songs are read in German naming, as their chords
 print: `B` is B♭ and `H` is B♮. An English B♭ (`B&`, `B\flt`) in such a song is

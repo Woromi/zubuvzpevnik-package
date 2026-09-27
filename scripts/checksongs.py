@@ -61,6 +61,17 @@ NOTE_H = re.compile(r"(?:^|/)H")
 MULTIVOICE = re.compile(r"\\multivoice\{([^{}]*)\}\{([^{}]*)\}")
 CHORD_MARK = re.compile(r"\^|\\\[")
 
+# --- Chord diagrams without finger numbers ---------------------------------
+# \gtab{name}{[fret:]strings[:fingers]}. songs.sty reads one colon as fret:strings
+# when the first field is a single character, else as strings:fingers.
+GTAB_FULL = re.compile(r"\\gtab\{([^}]*)\}\{([^}]*)\}")
+
+
+def has_fingers(fingering):
+    fields = fingering.split(":")
+    return len(fields) >= 3 or (len(fields) == 2 and len(fields[0]) > 1)
+
+
 # --- What counts as a song key ---------------------------------------------
 # This repo's keys plus the songs built-ins; anything else is a possible typo.
 CUSTOM_KEYS = {"lang", "key", "tun", "tem", "met", "cap", "ori", "chr", "src", "pap"}
@@ -291,6 +302,17 @@ def check_multivoice(info):
     return issues
 
 
+def check_fingers(info):
+    """Chord diagrams drawn without finger numbers, once per song."""
+    bare = [name for name, fing in GTAB_FULL.findall(info.get("text") or "")
+            if not has_fingers(fing)]
+    if not bare:
+        return []
+    return [(Severity.WARN, "chord diagram without finger numbers: "
+             + ", ".join(dict.fromkeys(bare))
+             + "  (add them after a colon: \\gtab{Am}{X02210:002310})")]
+
+
 def song_kind(path):
     return "tinwhistle" if "tinwhistle" in path.parts else "chords"
 
@@ -348,6 +370,7 @@ def check_song(path, info):
     issues.extend(check_rendering(info))
     issues.extend(check_naming(info))
     issues.extend(check_multivoice(info))
+    issues.extend(check_fingers(info))
     return issues
 
 
