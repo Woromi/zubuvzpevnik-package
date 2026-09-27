@@ -96,7 +96,7 @@ Inside a song you can use these parts (all but the chorus are verse-based and sh
 | Verse | `\beginverse … \endverse` | the verse number | *(from `songs`)*, numbers in bold |
 | Chorus | `\beginchorus … \endchorus` | `R:` | looks like a verse, just indented more |
 | Bridge | `\beginbridge … \endbridge` | `*` | |
-| Pre-chorus | `\beginprechorus … \endprechorus` | `P` | |
+| Pre-chorus | `\beginprechorus … \endprechorus` | `P:` | |
 | Intro | `\beginintro … \endintro` | *(none)* | |
 | Outro | `\beginoutro … \endoutro` | *(none)* | |
 | Instrumental | `\begininstrumental … \endinstrumental` | — | chords only, fixed-width |
@@ -112,7 +112,7 @@ Inside a song you can use these parts (all but the chorus are verse-based and sh
 \newSongPartType[\chordsonly]{guitarsolo}{}{0}  % chords-only (like instrumental)
 ```
 
-The part renders as a verse whose number slot shows `label` and whose indent is `indent × em`. An empty label prints no marker — that's how the unnumbered parts (intro/outro/instrumental) work. An optional `[setup]` runs extra code in the part body — pass **`\chordsonly`** (see below) to make any part chords-only.
+The part renders as a verse whose number slot shows `label` and whose indent is `indent × em`. The label prints exactly as written — only a verse number gets the ordinal dot (`1.`) — so give a letter or a singer its colon, like `R:` and `P:`: `{A:}`, `{Ent:}`. An empty label prints no marker — that's how the unnumbered parts (intro/outro/instrumental) work. An optional `[setup]` runs extra code in the part body — pass **`\chordsonly`** (see below) to make any part chords-only.
 
 **Instrumental.** `\begininstrumental … \endinstrumental` typesets chords only, each chord in a fixed-width box (so chord-only passages align). It is just `\newSongPartType[\chordsonly]{instrumental}{}{0}` — the **`\chordsonly`** style is reusable, so you can give any part type the same look (`solo`, a song-specific break, …) with `\newSongPartType[\chordsonly]{name}{}{0}`. The chord width defaults to `2em`; change it with:
 
