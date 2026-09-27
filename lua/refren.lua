@@ -22,8 +22,9 @@ local function starts(s, p) return s:sub(1, #p) == p end
 
 -- s is the chorus as \detokenize left it: catcode-12 text, lines split by CR.
 -- Prints the reminder, chords and second voice off, as the same catcode-12
--- string; nothing if the chorus has no text line.
-function zubchorus.reminder(s)
+-- string; nothing if the chorus has no text line. extra (a \rep{n}) follows
+-- the dots.
+function zubchorus.reminder(s, extra)
   local line = first(s)
   if not line then return end
   -- One line, so its repeat marks would not pair up.
@@ -44,5 +45,6 @@ function zubchorus.reminder(s)
     line = line:sub(1, at - 1):gsub("%s+$", "")
   end
   line = line:gsub(",$", "")
-  tex.sprint(-2, "\\chordsoff\\multivoiceoff " .. line .. "..." .. role)
+  if extra and extra ~= "" then extra = " " .. extra else extra = "" end
+  tex.sprint(-2, "\\chordsoff\\multivoiceoff " .. line .. "..." .. extra .. role)
 end
