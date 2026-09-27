@@ -397,6 +397,15 @@ drops the second voice and keeps only the main line. The three switches set one
 mode, `\zub@mvmode` (0 off, 1 stacked, 2 inline), a `\chardef` so `\multivoice`
 and `\role` can branch on it with `\ifcase` and no number terminator.
 
+**Repeat marks reach the second voice.** songs.sty draws `\lrep`/`\rrep` as
+rules from the chord line down to 1 pt below the lyric baseline, so a stacked
+second voice hung below them. The marks' rules and each stacked `\vtop` carry
+`\zub@repattr`; a `post_linebreak_filter` in `lua/hlasy.lua` finds lines holding
+both and lowers the rules to 1 pt below the lowest second-voice baseline. The
+dots are one `:` per row in a `\vbox`, so a copy of the last is appended for the
+second voice's row, with the box height kept so the rows above do not move. Lines
+without a stacked voice, and the inline and off modes, are untouched.
+
 `\multivoiceinline` prints `main (second)` on one line. Songs often split a
 second voice across chords (`\[D]{\multivoice{}{should we be}}\[Am]{\multivoice{}{lieve you?}}`),
 and each fragment lands in its own chord `\vbox`, so TeX can't see the next one
@@ -626,7 +635,8 @@ closes, and a local assignment would not outlive it — the symptom was
 `lua/refren.lua`, which builds the whole reminder there: it splits the string on
 the catcode-12 CR and takes the first line that carries text once control words
 and brace groups are set aside, then drops the repeat marks, puts the `...`
-before a trailing `\role` and prefixes `\chordsoff`. The marks are matched as
+before a trailing `\role` and prefixes `\chordsoff\multivoiceoff`: a reminder
+marks where the chorus goes, so it keeps only the main line. The marks are matched as
 `\detokenize` spells them, with a space after each control word (`\lrep ~`,
 `\rrep `). Taking the first line *with text* skips the empty segment the
 `\beginchorus`-line newline produces and, as importantly, a line of setup

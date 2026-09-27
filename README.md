@@ -158,7 +158,7 @@ The captured chorus can be reprinted later without retyping it:
 | Command | Result |
 |---------|--------|
 | `\insertchorus`  | Reprints the whole chorus (chords and line breaks intact). |
-| `\insertchorus*` | A one-line reminder: the **first source line only**, with **chords off**, its **repeat marks** (`\lrep~`, `\rrep`) and a **trailing comma dropped**, and **`...`** appended — before a `\role` label that ends the line, which stays. |
+| `\insertchorus*` | A one-line reminder: the **first source line only**, with **chords and the second voice off**, its **repeat marks** (`\lrep~`, `\rrep`) and a **trailing comma dropped**, and **`...`** appended — before a `\role` label that ends the line, which stays. |
 
 ```latex
 \beginchorus

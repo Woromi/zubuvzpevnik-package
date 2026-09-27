@@ -99,3 +99,66 @@ end
 luatexbase.add_to_callback("pre_linebreak_filter", function(head)
   return merge(head)
 end, "zub.multivoice")
+
+-- A repeat mark reaches the second voice. songs draws \lrep/\rrep from the
+-- chord line down to 1pt below the lyric baseline; on a line with a stacked
+-- \multivoice they go on to 1pt below the second voice's baseline instead.
+local rep = luatexbase.attributes["zub@repattr"]
+local MARK, VOICES = 1, 2
+
+-- How far below the line's baseline the lowest second-voice baseline sits.
+local function voicedrop(head)
+  local drop
+  for n in node.traverse(head) do
+    if (n.id == HLIST or n.id == VLIST) and n.head then
+      if n.id == VLIST and node.has_attribute(n, rep) == VOICES then
+        local row = lyricrow(n)
+        local d = n.depth - (row and row.depth or 0)
+        if not drop or d > drop then drop = d end
+      else
+        local d = voicedrop(n.head)
+        if d and (not drop or d > drop) then drop = d end
+      end
+    end
+  end
+  return drop
+end
+
+local KERN = node.id("kern")
+local HALFPT = tex.sp("0.5pt")
+
+-- songs stacks one ":" per row in a \vbox ending .5pt below the lyric's; a
+-- copy of the last one goes the same .5pt below the second voice's baseline.
+-- The box keeps its height, so the rows above stay put.
+local function adddots(box, drop)
+  local colon = lyricrow(box)
+  if not colon or box.depth > 0 then return end
+  local dots = node.copy(colon)
+  local k = node.new(KERN)
+  k.kern = drop - HALFPT - dots.height
+  local tail = node.tail(box.head)
+  node.insert_after(box.head, tail, k)
+  node.insert_after(box.head, k, dots)
+  box.depth = drop - HALFPT + dots.depth
+end
+
+local function lower(head, drop)
+  for n in node.traverse(head) do
+    local mark = node.has_attribute(n, rep) == MARK
+    if mark and n.id == RULE then
+      if n.depth < drop + tex.sp("1pt") then n.depth = drop + tex.sp("1pt") end
+    elseif mark and n.id == VLIST and n.head then
+      adddots(n, drop)
+    elseif (n.id == HLIST or n.id == VLIST) and n.head then
+      lower(n.head, drop)
+    end
+  end
+end
+
+luatexbase.add_to_callback("post_linebreak_filter", function(head)
+  for line in node.traverse_id(HLIST, head) do
+    local drop = line.head and voicedrop(line.head)
+    if drop then lower(line.head, drop) end
+  end
+  return head
+end, "zub.repeatmarks")
