@@ -30,6 +30,11 @@
 --    while e.g. the Czech conjunction "A" is left alone.
 --  * Czech collation: the digraph "Ch" forms its own index block
 --    when the locale collates "CH" after "H" (as cs_CZ does).
+--  * A single-word name ("Enya", "ABBA") is an author of its own:
+--    upstream lends it the next author's surname, for lists like
+--    "Joe, Billy E., and Bob Smith", which filed "Enya, The Lord
+--    of the Rings" as "Lord of the Rings, Enya". Only a surname
+--    ending in "." still looks ahead.
 --  * Reformatted (4-space indent), so diff upstream with -w.
 -- ============================================================
 VERSION = "3.0"
@@ -478,7 +483,11 @@ function grabauthor(authline, i)
     if last then
         sirname = unicode.utf8.gsub(authline:sub(last, (suffix or i) - 1), "([^%s,;\\])[%s,;]+$", "%1")
     end
-    if not sirname or unicode.utf8.find(sirname, "%a%.$") then
+    if not sirname then
+        -- A single-word name stands alone (local change, see the header).
+        return unicode.utf8.gsub(authline:sub(first, i - 1), "([^%s,;\\])[%s,;]+$", "%1"), i, nil
+    end
+    if unicode.utf8.find(sirname, "%a%.$") then
         -- Here's where it gets tough.  We either have a single-word name, or the
         -- last name ends in a "." which means maybe it's just a middle initial or
         -- other abbreviation.  We could be dealing with a line like, "Billy,
