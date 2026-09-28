@@ -429,8 +429,8 @@ sets among the words are ignored too. Spelling styles (*dreamin'*/*dreaming*,
 `scripts/checkorder.py PROJECT.tex …` checks that a book prints its songs in
 the order its title index lists them. It does not reimplement the sort: it
 feeds the project's titles to `songidx.lua` with the same Czech locale
-`buildindex.sh` uses, so Czech collation and the rotated English articles
-(*The Bards Song* under B) come out exactly as in the printed index. Each pair
+`buildindex.sh` uses, so Czech collation and the English articles sorted past
+(*The Bard's Song* under B) come out exactly as in the printed index. Each pair
 the book has the wrong way round is reported. A deliberate exception is marked
 on the `\input` of the song the book puts first — `\input{Ayreon/DaySixChildhood}
 % checkorder: ok` keeps *Day Six* ahead of *Day Seven*, as the numbers go. A book ordered on purpose some

@@ -35,6 +35,10 @@
 --    "Joe, Billy E., and Bob Smith", which filed "Enya, The Lord
 --    of the Rings" as "Lord of the Rings, Enya". Only a surname
 --    ending in "." still looks ahead.
+--  * Entries print as written: "The Bard's Song" and "The Beatles"
+--    are filed under B by a separate sort key (the "sort" field,
+--    read by cleantitle) instead of printing as "Bard's Song, The"
+--    and "Beatles, The". People still print surname first.
 --  * Reformatted (4-space indent), so diff upstream with -w.
 -- ============================================================
 VERSION = "3.0"
@@ -120,12 +124,13 @@ function numprefix(s)
 end
 
 -- cleantitle(<song>)
---   Remove macros and braces from <song>'s title, and convert it to uppercase.
+--   Remove macros and braces from <song>'s sort key (its title unless a
+--   separate "sort" is given), and convert it to uppercase.
 --   Macro-spaces ("\ ") are converted to regular spaces (" ").  Cache the
 --   result to avoid re-cleaning during sorting.
 function cleantitle(s)
     if not s["clean"] then
-        local t = s["title"]:gsub("\\[^%a%s]", ""):gsub("\\(%s)", "%1"):gsub("\\%a+%s*", ""):gsub("{%s*", ""):gsub("}",
+        local t = (s["sort"] or s["title"]):gsub("\\[^%a%s]", ""):gsub("\\(%s)", "%1"):gsub("\\%a+%s*", ""):gsub("{%s*", ""):gsub("}",
             "")
         s["clean"] = unicode.utf8.upper(t)
     end
@@ -581,21 +586,30 @@ function genindex(fs, outname, authorindex)
                 end
                 author = author:gsub("[\1\2\3]", ""):gsub("\\\\", "\\\1"):gsub("\\{", "\\\2"):gsub("\\}", "\\\3")
                 local i, a = 1
-                songtitle = rotate(unicode.utf8.gsub(unicode.utf8.gsub(songtitle, "([^%s\\])%s+$", "%1"), "^(%*?)%s+", "%1"), langpre)
+                songtitle = unicode.utf8.gsub(unicode.utf8.gsub(songtitle, "([^%s\\])%s+$", "%1"), "^(%*?)%s+", "%1")
+                local songsort = rotate(songtitle, langpre)
                 local alt = songtitle:sub(1, 1) == "*"
                 if alt then
-                    songtitle = songtitle:sub(2)
+                    songtitle, songsort = songtitle:sub(2), songsort:sub(2)
                 end
-                songtitle = "\\mdseries{" .. songtitle .. "}"
+                songtitle, songsort = "\\mdseries{" .. songtitle .. "}", "\\mdseries{" .. songsort .. "}"
                 while true do
                     a, i = grabauthor(author, i)
                     if not a then
                         break
                     end
                     a = a:gsub("\1", "\\"):gsub("\2", "{"):gsub("\3", "}")
+                    -- "Beatles, The" prints as "The Beatles", filed under B.
+                    local name, article = a:match("^(.-), (%a+)$")
+                    local authorsort = nil
+                    if name and unicode.utf8.upper(article) == "THE" then
+                        a, authorsort = article .. " " .. name, name
+                    end
                     table.insert(songs, {
                         author = a, -- Autor
+                        authorsort = authorsort,
                         title = songtitle, -- Název písničky (NOVÉ!)
+                        sort = songsort,
                         alt = alt,
                         num = snum,
                         linkname = link,
@@ -603,14 +617,16 @@ function genindex(fs, outname, authorindex)
                     })
                 end
             else
-                buf = rotate(unicode.utf8.gsub(unicode.utf8.gsub(buf, "([^%s\\])%s+$", "%1"), "^(%*?)%s+", "%1"), langpre)
+                buf = unicode.utf8.gsub(unicode.utf8.gsub(buf, "([^%s\\])%s+$", "%1"), "^(%*?)%s+", "%1")
+                local sort = rotate(buf, langpre)
                 local alt = buf:sub(1, 1) == "*"
                 if alt then
-                    buf = buf:sub(2)
+                    buf, sort = buf:sub(2), sort:sub(2)
                 end
-                buf = "\\mdseries{" .. buf .. "}"
+                buf, sort = "\\mdseries{" .. buf .. "}", "\\mdseries{" .. sort .. "}"
                 table.insert(songs, {
                     title = buf,
+                    sort = sort,
                     alt = alt,
                     num = snum,
                     linkname = link,
@@ -1265,6 +1281,7 @@ function genindex_by_author(songs, outname)
         -- in a pseudo-song record (the cleaned form is cached in the record).
         author_keys[author] = {
             title = author,
+            sort = authors_map[author][1].authorsort,
             idx = 0
         }
     end

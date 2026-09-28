@@ -238,8 +238,11 @@ still does not survive the first song.
 ### Index sort directive
 
 `\SB@addtoindex` is patched to emit a `%lang <language>` line before each song's
-index entries, so `songidx.lua` can apply per-language title rules — rotating
-the English articles *The/A/An* while leaving the Czech conjunction *A* alone.
+index entries, so `songidx.lua` can apply per-language title rules — filing
+English titles past their article *The/A/An* while leaving the Czech conjunction
+*A* alone. The article only moves in the sort key: *The Bard's Song* prints as
+written, under B. A band's leading *The* is handled the same way (*The Beatles*
+under B), while people still print surname first (*Plíhal, Karel*).
 The `%` is written as `\@percentchar` so it reaches the file as a literal.
 
 ### Language filtering

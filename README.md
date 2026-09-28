@@ -218,7 +218,7 @@ Transliterating routes every chord through the transposer, so a chord's accident
 
 ## Language and filtering
 
-The `lang` key sets the `babel` language (hyphenation), the chord naming, and a per-language sort directive used by the index sorter (`songidx.lua`), so e.g. English leading articles rotate while the Czech conjunction "A" doesn't.
+The `lang` key sets the `babel` language (hyphenation), the chord naming, and a per-language sort directive used by the index sorter (`songidx.lua`), so e.g. an English leading article is skipped for sorting (*The Bard's Song* prints as written, under B) while the Czech conjunction "A" isn't.
 
 **Build variants by language.** Restrict which songs appear:
 
