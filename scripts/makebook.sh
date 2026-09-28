@@ -108,6 +108,14 @@ for s in $plan; do
 done
 
 pdfunite "${imposed[@]}" "${jobname}Book.pdf" 2>>"$tmp/poppler.err"
+# pdfunite writes this merge with a broken xref (trailer /Size below the /Root
+# object); viewers repair it silently, a printer may not. mutool rewrites the
+# file losslessly. See docs/building.md.
+if command -v mutool >/dev/null; then
+    mutool clean -gg "${jobname}Book.pdf" "$tmp/clean.pdf" 2>>"$tmp/poppler.err" && mv "$tmp/clean.pdf" "${jobname}Book.pdf"
+else
+    echo "  Note: install mupdf-tools (mutool) to repair the PDF's cross-reference table before printing."
+fi
 [ "$verbose" -eq 1 ] && [ -s "$tmp/poppler.err" ] && sort -u "$tmp/poppler.err"
 
 sides=$(pdfinfo "${jobname}Book.pdf" 2>/dev/null | awk '/^Pages:/{print $2}')

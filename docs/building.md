@@ -6,7 +6,7 @@
 sudo apt-get install texlive-luatex texlive-latex-base texlive-latex-recommended \
     texlive-latex-extra texlive-plain-generic texlive-music texlive-fonts-extra \
     texlive-font-utils texlive-extra-utils texlive-lang-czechslovak lilypond \
-    fonts-open-sans fonts-freefont-otf unifont poppler-utils
+    fonts-open-sans fonts-freefont-otf unifont poppler-utils mupdf-tools
 ```
 
 | Package | Provides |
@@ -16,6 +16,7 @@ sudo apt-get install texlive-luatex texlive-latex-base texlive-latex-recommended
 | `texlive-font-utils` | `epstopdf`, which converts engraved scores for embedding |
 | `texlive-extra-utils` | `pdfbook2`, which imposes the camp A5 booklet |
 | `poppler-utils` | `pdfinfo`, used to check the booklet page count |
+| `mupdf-tools` | `mutool`, which repairs the A5 book's print file: `pdfunite` leaves its merge with a broken cross-reference table that viewers fix silently but a printer may not |
 | `lilypond` | engraves the embedded sheet music |
 
 If the list ever drifts out of date, `texlive-full` instead of the `texlive-*`
