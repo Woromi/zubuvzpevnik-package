@@ -81,7 +81,7 @@
 		Vydání: \@date\par
 		\ifx\zub@imprintnote\@empty\else\zub@imprintnote\par\fi
 		\medskip
-		{\footnotesize Vysázeno v~LuaLaTeXu (balík songs), notové ukázky v~LilyPondu.\par
+		{\footnotesize Vysázeno v~LuaLaTeXu (balíček songs), notové ukázky v~LilyPondu.\par
 		Texty a~akordy patří jejich autorům; zpěvník je určen k~soukromému
 		použití.\par}%
 	}%
