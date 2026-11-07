@@ -44,7 +44,8 @@ function zubchorus.reminder(s, extra)
     role = " " .. line:sub(at)
     line = line:sub(1, at - 1):gsub("%s+$", "")
   end
-  line = line:gsub(",$", "")
+  -- Trailing punctuation (and dots already there) give way to the "...".
+  line = line:gsub("[,.;:!?]+$", "")
   if extra and extra ~= "" then extra = " " .. extra else extra = "" end
   tex.sprint(-2, "\\chordsoff\\multivoiceoff " .. line .. "..." .. extra .. role)
 end

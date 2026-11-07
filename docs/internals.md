@@ -656,7 +656,7 @@ closes, and a local assignment would not outlive it — the symptom was
 `\insertchorus*` hands the stored string to `zubchorus.reminder` in
 `lua/refren.lua`, which builds the whole reminder there: it splits the string on
 the catcode-12 CR and takes the first line that carries text once control words
-and brace groups are set aside, then drops the repeat marks, puts the `...`
+and brace groups are set aside, then drops the repeat marks and any trailing punctuation, puts the `...`
 before a trailing `\role` and prefixes `\chordsoff\multivoiceoff`: a reminder
 marks where the chorus goes, so it keeps only the main line. The marks are matched as
 `\detokenize` spells them, with a space after each control word (`\lrep ~`,
