@@ -408,6 +408,19 @@ Bracing the text does not work: `\[{N.C.}]` reaches `\SB@@chord#1]` as a single
 brace group, and TeX strips the outer braces off a macro argument before
 `\SB@trgroup` — which does pass groups through — ever sees them.
 
+### Multiword chords
+
+`songs`' `\MultiwordChords` redefines `\SB@spcinit`, which every chord runs at
+the start of its lyric, so that a space no longer ends the stretch of lyrics a
+chord can hang over. Without it a chord wider than its word widens the space
+after it, and songs used to fake the multiword behaviour with `{…}` groups and
+`~`. Every song was measured both ways in all three classes before it became the
+default: page counts did not move and every changed line got tighter.
+
+`akordy.cfg` calls it in the preamble. `\SinglewordChords` puts back the empty
+`\SB@spcinit` the package starts with; a song body is typeset inside
+`\SB@@@beginsong`'s `\vbox\bgroup\begingroup`, so the switch ends with the song.
+
 ## Multi-voice (`hlasy.cfg`)
 
 `\multivoice{main}{second}` stacks two lines in a `\vtop` with

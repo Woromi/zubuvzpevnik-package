@@ -214,6 +214,8 @@ Transliterating routes every chord through the transposer, so a chord's accident
 
 **No chord.** `\[\nochord]` marks a spot where nothing is played — it prints *N.C.* Write the macro, not the letters: in `\[N.C.]` the `C` is a note name like any other, so a song with a `\transpose` prints it transposed (*N.A♯* and so on).
 
+**Multiword chords.** A chord wider than the syllable under it hangs over the following words instead of stretching the gap, so neither `{…}` groups nor `~` are needed to keep a line tight. This is the `songs` package's `\MultiwordChords`, switched on for every song; `\SinglewordChords` right after `\beginsong[…]` turns it off for that song alone.
+
 **Chord diagrams.** Diagram styling is tweaked (mono barre numbers; spacing above empty frets). Diagrams are drawn with the usual `songs` `\gtab`. (Capo + diagram tweaks live in `feature/akordy.cfg`.)
 
 ## Language and filtering
