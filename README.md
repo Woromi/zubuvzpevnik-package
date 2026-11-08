@@ -149,6 +149,8 @@ A right-aligned **role label** (e.g. for a duet or call-and-response) is `\role`
 \role{Soprano}{Alto}      % both, the second one grayed (only if multi-voice is on)
 ```
 
+`\rolesoff` hides the role labels and `\roleson` brings them back. Like `\multivoiceoff`, written inside a part it lasts to the end of that part; between parts, to the end of the song; in the preamble, for the whole book.
+
 Multi-voice can be switched per document with `\multivoiceon` / `\multivoiceoff` (the A5 camp class turns it off by default — the second voice is dropped and only the main line is kept). `\multivoiceinline` keeps the second voice on the main line instead, in parentheses and `\secondvoicestyle` — `main (second)` (`\multivoiceinlineonsmallpage` does so on A5 only, keeping A4 stacked); fragments with nothing but chords and plain spaces between them are joined into one `(…)`; anything else between them — lyrics, a measure bar, filler spacing — keeps them apart. The second voice is set at 90 % of the line it belongs to, so `\smalleronsmallpage` shrinks it along with the main text. Tunables: `\secondvoiceraise` (how far the second voice tucks up under the main line, default `2pt`), `\rolestyle`, `\secondvoicestyle` (colour and size) and `\secondvoicecolor` (the grey alone, used by the role labels, which keep their own size). Defined in `feature/hlasy.cfg`.
 
 ## Repeating the chorus
@@ -158,7 +160,7 @@ The captured chorus can be reprinted later without retyping it:
 | Command | Result |
 |---------|--------|
 | `\insertchorus`  | Reprints the whole chorus (chords and line breaks intact). |
-| `\insertchorus*` | A one-line reminder: the **first source line only**, with **chords and the second voice off**, its **repeat marks** (`\lrep~`, `\rrep`) and **trailing punctuation** (`,` `.` `;` `:` `!` `?`, or dots already there) dropped, and **`...`** appended — before a `\role` label that ends the line, which stays. A `\rep{n}` written right after it joins the same line: `\insertchorus* \rep{2}` gives `R: first line... (×2)`. |
+| `\insertchorus*` | A one-line reminder: the **first source line only**, with **chords and the second voice off**, its **repeat marks** (`\lrep~`, `\rrep`), **chords and second voices after the last word** and **trailing punctuation** (`,` `.` `;` `:` `!` `?`, or dots already there) dropped, and **`...`** appended — before a `\role` label that ends the line, which stays. A `\rep{n}` written right after it joins the same line: `\insertchorus* \rep{2}` gives `R: first line... (×2)`. |
 
 ```latex
 \beginchorus
@@ -168,6 +170,14 @@ The captured chorus can be reprinted later without retyping it:
 ...
 \insertchorus     % => the full chorus again
 \insertchorus*    % => "R:  Refrén první řádek..."
+```
+
+**Setup before the text.** A second bracket runs commands inside the repeat, before its first line — where a `\chordsoff` at the top of the chorus would go, so it ends with the repeat. Leave the first bracket empty for the latest chorus:
+
+```latex
+\insertchorus[][\chordsoff]    % => the full chorus, without chords
+\insertchorus[2][\chordsoff]   % => chorus 2, without chords
+\insertchorus*[][\chordson]    % => the reminder line, with its chords
 ```
 
 The most recently defined chorus of the song is the one repeated; a song starts with none, so a repeat never reaches back into the previous song. Put `\beginchorus` on its own line. (Defined in `songpart/refren.cfg`.)

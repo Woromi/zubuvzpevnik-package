@@ -431,6 +431,10 @@ is the right-aligned label variant. `\multivoiceoff` (used by the A5 class)
 drops the second voice and keeps only the main line. The three switches set one
 mode, `\zub@mvmode` (0 off, 1 stacked, 2 inline), a `\chardef` so `\multivoice`
 and `\role` can branch on it with `\ifcase` and no number terminator.
+`\rolesoff` / `\roleson` flip a separate `\ifzub@roles`: off, `\role` still
+reads its arguments but prints nothing, not even its `\hfill`. Both are local
+assignments, so they scope like `\multivoiceoff`: to the part when written
+inside one, to the rest of the song between parts.
 
 **Repeat marks reach the second voice.** songs.sty draws `\lrep`/`\rrep` as
 rules from the chord line down to 1 pt below the lyric baseline, so a stacked
@@ -669,8 +673,8 @@ closes, and a local assignment would not outlive it — the symptom was
 `\insertchorus*` hands the stored string to `zubchorus.reminder` in
 `lua/refren.lua`, which builds the whole reminder there: it splits the string on
 the catcode-12 CR and takes the first line that carries text once control words
-and brace groups are set aside, then drops the repeat marks and any trailing punctuation, puts the `...`
-before a trailing `\role` and prefixes `\chordsoff\multivoiceoff`: a reminder
+and brace groups are set aside, then drops the repeat marks, whatever prints nothing after the last word (chords, `\multivoice{}{…}` second voices, groups of only those, and the spaces before them; a final `\multivoice{main}{…}` is unwrapped to its main voice) and any trailing punctuation, puts the `...`
+before a trailing `\role`; TeX replays it behind `\chordsoff\multivoiceoff`: a reminder
 marks where the chorus goes, so it keeps only the main line. The marks are matched as
 `\detokenize` spells them, with a space after each control word (`\lrep ~`,
 `\rrep `). Taking the first line *with text* skips the empty segment the
@@ -679,6 +683,13 @@ alone: `\beginchorus\chordsoffonsmallpage` leaves `\chordsoffonsmallpage` as the
 first "line", and a reminder built from it printed nothing but `...`. Lua
 returns the line with `tex.sprint(-2, …)`, as the same catcode-12 string
 `\detokenize` made, replayed like a full chorus.
+
+**Setup argument.** `\insertchorus[n][setup]` passes `setup` to
+`\zub@chorus@replay`, which runs it right after opening the chorus and before
+the `\scantokens` — where a `\chordsoff` at the top of a chorus body would sit,
+so it is part-local like that one. The reminder's `\chordsoff\multivoiceoff`
+is put *before* `setup` on the TeX side (not into the Lua string), so
+`\insertchorus*[][\chordson]` can bring the chords back.
 
 **Numbered choruses.** `\beginchorus[n]` reads its bracket with `\@ifnextchar`
 *before* the grab switches catcodes, and records `n` in `\zub@chorusnum`. After
