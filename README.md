@@ -332,6 +332,17 @@ Fonts out of the box: Open Sans for text, Roboto Mono for lyrics and chords, Fre
 
 Embed engraved sheet music with `lyluatex`'s `\lilypondfile{…}` (or `\narrowlilypondfile{…}`). Song fragments `\include "zubuvzpevnik.ily"` by bare name: `zubuvzpevnik.sty` adds this package's `lilypond/` directory to lyluatex's include path (locating it via kpse), so it works whether the package is on `TEXINPUTS` or installed in `~/texmf` — no copying required. The shared includes are `zubuvzpevnik.ily` and `tinwhistle.ily`.
 
+A score is hidden wherever chords are off (a `\chordsoff` between parts, or a lyrics-only book). If it carries lyrics the song needs, repeat them for that case with `songs`' `\ifchorded`, which nests like `\iflargepaper`:
+
+```latex
+\lilypondfile{REM/LosingMyReligionBridge.ly}
+\ifchorded\else
+    \beginbridge
+        But that was just a dream, that was just a dream.
+    \endbridge
+\fi
+```
+
 ## Document classes
 
 ### velkyzpevnik.cls

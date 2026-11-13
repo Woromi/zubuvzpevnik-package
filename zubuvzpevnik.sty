@@ -44,12 +44,14 @@
 % LilyPond note names
 % ==========================
 % Czech and Slovak songs get German note names, everything else English;
-% see docs/internals.md#package-setup.
+% see docs/internals.md#package-setup. Hidden under \chordsoff, like \musicnote.
 \let\ZUB@lilypondfile\lilypondfile
 \renewcommand{\lilypondfile}[1]{%
-	\IfSubStr{,czech,slovak,}{,\SB@songlang,}%
-		{\ZUB@lilypondfile[language=deutsch]{#1}}%
-		{\ZUB@lilypondfile{#1}}%
+	\ifchorded
+		\IfSubStr{,czech,slovak,}{,\SB@songlang,}%
+			{\ZUB@lilypondfile[language=deutsch]{#1}}%
+			{\ZUB@lilypondfile{#1}}%
+	\fi
 }
 
 % ==========================
@@ -174,9 +176,11 @@
 }
 
 \newcommand{\narrowlilypondfile}[1]{%
-	\begin{narrowonlargepaper}
-		\lilypondfile{#1}
-	\end{narrowonlargepaper}
+	\ifchorded
+		\begin{narrowonlargepaper}
+			\lilypondfile{#1}
+		\end{narrowonlargepaper}
+	\fi
 }
 
 % ==========================

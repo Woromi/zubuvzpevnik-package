@@ -128,6 +128,16 @@ nothing checks that — it parses either way and simply sounds wrong. Engraving 
 before and after with chord names hidden and comparing the bitmaps is the way to
 tell.
 
+**Scores follow `\chordsoff`.** `\lilypondfile` and `\narrowlilypondfile`
+engrave only under `songs`' `\ifchorded`, the same test its own `\musicnote`
+uses: a tab or chord chart is no use in a lyrics-only book. Only a `\chordsoff`
+that reaches the score hides it — between parts (song-wide) or for the whole
+book (the `lyric` option); one inside a part ends with that part. Lyrics that
+live only in the `.ly` are not extracted from it — LilyPond lyrics carry
+`--`/`__` syllable syntax, no line breaks, and often run into the next part — so
+the song repeats them as an ordinary part in an `\ifchorded\else … \fi` branch,
+the part's `\beginX` naming what kind of part it is.
+
 **Air around a score.** lyluatex wraps every engraved system in
 `\preLilyPondExample` and `\postLilyPondExample` and leaves both undefined,
 which is why a score otherwise butts straight against the lines above and below
