@@ -74,7 +74,7 @@ def has_fingers(fingering):
 
 # --- What counts as a song key ---------------------------------------------
 # This repo's keys plus the songs built-ins; anything else is a possible typo.
-CUSTOM_KEYS = {"lang", "key", "tun", "tem", "met", "cap", "ori", "chr", "src", "pap"}
+CUSTOM_KEYS = {"lang", "key", "tun", "tem", "met", "cap", "ori", "chr", "src", "pap", "tags"}
 BUILTIN_KEYS = {"by", "cr", "li", "index", "ititle"}
 KNOWN_KEYS = CUSTOM_KEYS | BUILTIN_KEYS
 

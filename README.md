@@ -65,8 +65,9 @@ Keys go in the optional `[...]` argument of `\beginsong`. All are optional excep
 | `chr` | Chords used, shown above the song (e.g. `\gtab` diagrams). |
 | `src` | Source URL (typeset as a link). |
 | `pap` | Paper sizes the song fits **one page** of, e.g. `a4,a5`, or **two facing pages** of with the `x2` suffix, e.g. `a5x2`. Prints nothing. No key means none; see below. |
+| `tags` | Comma-separated labels for the editor app, e.g. `fav, táborák` (`fav` marks a favourite). Prints nothing. |
 
-`key`/`tun`/`tem`/`met`/`cap`/`ori`/`chr`/`src`/`pap` are defined in `feature/metadata.cfg`; `lang` in `feature/lokalizace.cfg`. On large paper they are laid out in a box beside the title (see `\makeprelude`); on small paper they are omitted. `met` and `cap` are not in that box: they act at the start of the song body on every paper.
+`key`/`tun`/`tem`/`met`/`cap`/`ori`/`chr`/`src`/`pap`/`tags` are defined in `feature/metadata.cfg`; `lang` in `feature/lokalizace.cfg`. On large paper they are laid out in a box beside the title (see `\makeprelude`); on small paper they are omitted. `met` and `cap` are not in that box: they act at the start of the song body on every paper.
 
 ### Writing the `key`
 
