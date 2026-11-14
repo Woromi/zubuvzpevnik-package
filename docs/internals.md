@@ -712,6 +712,27 @@ that window. The unnumbered "latest chorus" strings are cleared from a hook on
 `\SB@@@beginsong`; before that, a song's `\insertchorus` reprinted the previous
 song's chorus.
 
+### Repeatable parts
+
+`\newSongPartType*` gives a verse-based part the chorus's source capture
+(`\zub@rp@…` in `sloka.cfg`), so a pre-chorus can be numbered and reprinted. It
+mirrors the chorus rather than sharing code with it: the chorus replays through
+the `songs` chorus, a repeatable part through `\zub@beginpart`, and the label is
+built per printing as `letter`, number, `:` instead of being fixed at definition.
+Everything else is the chorus's: the bracket is read before the grab, the grab
+catcodes are the same, the string is replayed with `\scantokens`, the reminder
+comes from `zubchorus.reminder`, and the `\insertX` argument parsing is
+`\zub@chorus@which`. Slots are keyed `zub@rp@<name>@<songnum>@…` — the latest
+part under `last`/`lastnum`, numbered ones under `=n` — so, unlike the chorus,
+nothing needs clearing at `\beginsong`.
+
+Only the macro form is captured. The delimiter is the `\endX` token, which
+`\begin{X}` never puts in the input, and a second grabber like the chorus's
+was not worth it, so `\begin{X}` raises an error instead of running away.
+`\zub@replaying` names the part while a replay is being typeset; the
+`checkpaper.py` probe reports wrapped lines under it, since `\inputlineno` then
+counts from the start of the captured part.
+
 ## Document classes and booklet page maths
 
 All three classes load the package, set `geometry` margins, override the

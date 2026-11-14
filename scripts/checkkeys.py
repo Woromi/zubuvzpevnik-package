@@ -43,7 +43,7 @@ DEFAULT_REGISTER = "verse"
 # Part types; load() also picks up any the song adds with \newSongPartType.
 PART_TYPES = {"verse", "chorus", "prechorus", "bridge",
               "intro", "interlude", "outro", "instrumental"}
-NEW_PART_RE = re.compile(r"\\newSongPartType(?:\[[^\]]*\])?\{([a-zA-Z]+)\}")
+NEW_PART_RE = re.compile(r"\\newSongPartType\*?(?:\[[^\]]*\])?\{([a-zA-Z]+)\}")
 # One ordered scan, so \transpose applies only to the chords that follow it.
 TOKEN_RE = re.compile(
     r"\\transpose\*?\{([+-]?\d+)\}"                 # 1: transpose

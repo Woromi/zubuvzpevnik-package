@@ -97,7 +97,7 @@ Inside a song you can use these parts (all but the chorus are verse-based and sh
 | Verse | `\beginverse … \endverse` | the verse number | *(from `songs`)*, numbers in bold |
 | Chorus | `\beginchorus … \endchorus` | `R:` | looks like a verse, just indented more |
 | Bridge | `\beginbridge … \endbridge` | `*` | |
-| Pre-chorus | `\beginprechorus … \endprechorus` | `P:` | |
+| Pre-chorus | `\beginprechorus … \endprechorus` | `P:` | numbered and repeated like the chorus: `[n]` → `P1:`, `\insertprechorus` |
 | Intro | `\beginintro … \endintro` | *(none)* | |
 | Outro | `\beginoutro … \endoutro` | *(none)* | |
 | Instrumental | `\begininstrumental … \endinstrumental` | — | chords only, fixed-width |
@@ -114,6 +114,21 @@ Inside a song you can use these parts (all but the chorus are verse-based and sh
 ```
 
 The part renders as a verse whose number slot shows `label` and whose indent is `indent × em`. The label prints exactly as written — only a verse number gets the ordinal dot (`1.`) — so give a letter or a singer its colon, like `R:` and `P:`: `{A:}`, `{Ent:}`. An empty label prints no marker — that's how the unnumbered parts (intro/outro/instrumental) work. An optional `[setup]` runs extra code in the part body — pass **`\chordsonly`** (see below) to make any part chords-only.
+
+**Repeatable parts.** The starred form, `\newSongPartType*[setup]{name}{letter}{indent}`, makes a part behave like the chorus: `\beginX[n]` prints as `letter` + `n` + `:` (`letter:` without a number), and `\insertX[n][setup]` / `\insertX*[n][setup]` reprint it in full or as the one-line reminder, exactly like [`\insertchorus`](#repeating-the-chorus). The pre-chorus is one: `\newSongPartType*{prechorus}{P}{3}`.
+
+```latex
+\beginprechorus[1]
+    \[A]First pre-chorus
+\endprechorus
+\beginprechorus[2]\chordsoff
+    \[A]Second pre-chorus
+\endprechorus
+\insertprechorus[2]       % => P2: in full, chords off as written
+\insertprechorus*[1]      % => "P1:  First pre-chorus..."
+```
+
+Write it as `\beginX … \endX`; the `\begin{X}` form is refused, since the body is captured up to `\endX`.
 
 **Instrumental.** `\begininstrumental … \endinstrumental` typesets chords only, each chord in a fixed-width box (so chord-only passages align). It is just `\newSongPartType[\chordsonly]{instrumental}{}{0}` — the **`\chordsonly`** style is reusable, so you can give any part type the same look (`solo`, a song-specific break, …) with `\newSongPartType[\chordsonly]{name}{}{0}`. The chord width defaults to `2em`; change it with:
 

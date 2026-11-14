@@ -65,7 +65,7 @@ PROBE_PREAMBLE = r"""\makeatletter
 \newcommand\zub@probe@line{%
   \ifnum\prevgraf>\@ne
     \immediate\write\zub@probe@wrap{%
-      \thesongnum\space\ifSB@inchorus r\else v\fi\space\the\inputlineno}%
+      \thesongnum\space\ifSB@inchorus r\else\ifx\zub@replaying\@empty v\else\zub@replaying\fi\fi\space\the\inputlineno}%
   \fi}
 \xpatchcmd{\SB@par}{\endgraf}{\endgraf\zub@probe@line}%
   {\immediate\write\zub@probe@wrap{ok}}%
@@ -177,9 +177,10 @@ def read_sxd(path):
 def read_wraps(path):
     """Ordinal -> [(part, line)] for every song line the probe had to break.
 
-    A chorus is replayed at each \\insertchorus and re-read from its own stored
-    source, so it reports its lines once per printing and numbers them from the
-    start of the chorus; identical records are therefore one broken line."""
+    A chorus (or a numbered-part type like the pre-chorus) is replayed at each
+    \\insertchorus and re-read from its own stored source, so it reports its
+    lines once per printing and numbers them from the start of the part;
+    identical records are therefore one broken line."""
     if not path.exists():
         raise RuntimeError("the probe wrote no line report; see PROBE_PREAMBLE")
     lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
@@ -392,10 +393,11 @@ def plural(n, word):
 
 
 def wrap_note(broken, limit=3):
-    """Where the lines that had to be broken are. A chorus is read back from its
-    own stored source, so its lines count from the start of the chorus."""
-    where = [f"chorus line {n}" if part == "r" else f"line {n}"
-             for part, n in broken[:limit]]
+    """Where the lines that had to be broken are. A chorus or a starred part type
+    (prechorus) is read back from its own stored source, so its lines count
+    from the start of it."""
+    names = {"r": "chorus line", "v": "line"}
+    where = [f"{names.get(part, part + ' line')} {n}" for part, n in broken[:limit]]
     if len(broken) > limit:
         where.append(f"and {len(broken) - limit} more")
     return ", ".join(where)
