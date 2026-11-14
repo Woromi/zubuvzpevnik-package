@@ -255,6 +255,21 @@ written, under B. A band's leading *The* is handled the same way (*The Beatles*
 under B), while people still print surname first (*Plíhal, Karel*).
 The `%` is written as `\@percentchar` so it reaches the file as a literal.
 
+### Several languages
+
+`lang={czech, quenya}` is split at the commas (spaces dropped) into
+`\SB@songlangs`, the whole list, and `\SB@songlang`, its first entry. Everything
+that existed before reads `\SB@songlang` alone — `\selectlanguage`, chord
+naming, the `%lang` index directive, the language filter, the LilyPond note
+names — because each needs exactly one answer: babel can select one language,
+a chord is named one way, and a bilingual song must still land in exactly one
+of a Czech/foreign split. So the first entry is the language the song lives in
+(Yomara nildar is Czech though it opens in Quenya), and the rest are tags,
+read only outside TeX: `songfile.song_langs` for `checksongs.py`, and the
+website's language chips. A passage in the other language gets its own quotes
+and hyphenation from `\foreignlanguage`, which `\enquote` follows because it
+reads `\languagename` when it prints.
+
 ### Language filtering
 
 `\SB@submitsong` is wrapped: a song that fails the filter has its box voided

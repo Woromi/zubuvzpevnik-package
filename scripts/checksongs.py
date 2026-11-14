@@ -17,8 +17,8 @@ import unicodedata
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from songfile import (collect_song_files, input_name, parse_song,  # noqa: E402
-                      strip_comments)
+from songfile import (collect_song_files, input_name, main_lang,  # noqa: E402
+                      parse_song, song_langs, strip_comments)
 
 # --- Text that will not reach the PDF as intended ---------------------------
 # Open Sans has no arrow or accidental glyphs, and LuaLaTeX drops a missing
@@ -92,7 +92,7 @@ MEASURE_BAR = re.compile(r"(?<!\\)\|")
 # Recognised languages; anything else is flagged as a likely typo.
 KNOWN_LANGS = {
     "czech", "slovak", "english", "german", "french", "spanish",
-    "italian", "polish", "hungarian", "latin", "quenya",
+    "italian", "polish", "hungarian", "latin", "quenya", "hebrew",
 }
 
 # Paper sizes pap={} may name; the same list drives scripts/checkpaper.py. The
@@ -246,7 +246,7 @@ def typo_hints(parsed_all):
             if twins:
                 hints.setdefault(f, []).append((w, max(twins, key=corpus.get)))
     english = [f for f, info in parsed_all
-               if info["keys"].get("lang", "").strip() == "english" and f in hints]
+               if main_lang(info["keys"]) == "english" and f in hints]
     unknown = _english_unknown(sorted({w for f in english for w, _ in hints[f]}))
     for f in english:
         hints[f] = [(w, c) for w, c in hints[f] if w in unknown]
@@ -259,7 +259,7 @@ def check_naming(info):
     """B/H spelled for the song's naming, in chords, diagrams, key= and tun=."""
     issues = []
     text = info.get("text") or ""
-    german = info["keys"].get("lang", "").strip() in GERMAN_LANGS
+    german = main_lang(info["keys"]) in GERMAN_LANGS
     wrong = NOTE_B_FLAT if german else NOTE_H
     fix = ("B-flat is plain B in Czech naming (B& reads as B-double-flat)" if german
            else "H is Czech naming; an English song writes B")
@@ -344,9 +344,9 @@ def check_song(path, info):
     if unknown:
         issues.append((Severity.WARN, "unknown key (typo?): " + ", ".join(unknown)))
 
-    lang = keys.get("lang", "").strip()
-    if lang and lang not in KNOWN_LANGS:
-        issues.append((Severity.WARN, f"unusual language '{lang}' (typo? add to KNOWN_LANGS if intended)"))
+    for lang in song_langs(keys):
+        if lang not in KNOWN_LANGS:
+            issues.append((Severity.WARN, f"unusual language '{lang}' (typo? add to KNOWN_LANGS if intended)"))
 
     # A paper the classes do not name can never match, so the song silently
     # counts as fitting nothing; see checkpaper.py.

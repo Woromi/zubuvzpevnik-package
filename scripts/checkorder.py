@@ -16,7 +16,7 @@ import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from songfile import parse_song, strip_comments  # noqa: E402
+from songfile import main_lang, parse_song, strip_comments  # noqa: E402
 
 REPO = Path(__file__).resolve().parent.parent
 SONG_DIRS = [REPO / "songs" / "chords", REPO / "songs" / "tinwhistle"]
@@ -51,7 +51,7 @@ def book_songs(project):
             continue                      # an \input that is not a song
         info = parse_song(path)
         if info["title"]:
-            songs.append((info["title"], info["keys"].get("lang", "").strip(), name,
+            songs.append((info["title"], main_lang(info["keys"]), name,
                           name in accepted))
     return songs
 

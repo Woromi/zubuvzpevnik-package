@@ -202,7 +202,7 @@ def load(path):
     # key={} names one key for every paper, so read the A4 variant only: an
     # A5 branch may re-finger the song with a capo of its own.
     text = LARGEPAPER_RE.sub(r"\1", text)
-    german = bool(re.search(r"lang=\{(czech|slovak)\}", text))
+    german = bool(re.search(r"lang=\{\s*(czech|slovak)\s*[,}]", text))
     capo_m = CAPO_RE.search(text)
     capo = int(capo_m.group(1)) if capo_m else 0
     tun_m = TUN_RE.search(text)

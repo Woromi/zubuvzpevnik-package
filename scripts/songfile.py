@@ -7,6 +7,18 @@ read the song database the same way. See docs/tools.md.
 from pathlib import Path
 
 
+def song_langs(keys):
+    """lang={czech, quenya} -> ["czech", "quenya"]: the first is the song's
+    language, the rest only tag it (lokalizace.cfg)."""
+    return [lang.strip() for lang in keys.get("lang", "").split(",") if lang.strip()]
+
+
+def main_lang(keys):
+    """The language that decides grammar, chord naming and book filtering."""
+    langs = song_langs(keys)
+    return langs[0] if langs else ""
+
+
 def strip_comments(text):
     """Blank out TeX line comments, keeping newlines so line numbers survive."""
     out = []

@@ -55,7 +55,7 @@ Keys go in the optional `[...]` argument of `\beginsong`. All are optional excep
 | Key   | Meaning |
 |-------|---------|
 | `by`  | Artist / author (drives the author index). *(from `songs`)* |
-| `lang`| Song language — `czech`, `slovak`, `english`, … Selects hyphenation, chord naming, index sorting and `-l`/`-e` filtering. |
+| `lang`| Song language — `czech`, `slovak`, `english`, … Selects hyphenation, chord naming, index sorting and `-l`/`-e` filtering. A bilingual song lists more, main one first: `lang={czech, quenya}` — only the first does all of the above; the rest tag the song (the website's language filter and counts, `checksongs.py`). |
 | `key` | Musical key — see below. |
 | `tun` | Instrument tuning. A uniform detuning (`E\flat A\flat D\flat G\flat B\flat E\flat`, or `Half-step down`) transposes every shape you finger, so it counts towards `key`; a drop tuning like `D A D G B E` retunes one string and does not. |
 | `tem` | Tempo. |
