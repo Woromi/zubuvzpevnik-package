@@ -1,6 +1,6 @@
 # Zubův zpěvník
 
-This repository is the package, with its build scripts (`scripts/`: `build.sh`, the index sorter, `checkpaper.py` and the song linters) and the maintainer docs (`docs/`). The songs and the printed books live in the ZubuvZpevnik repository, which has this one as a submodule at `zubuvzpevnik/`; the Zpěvníkář app bundles its own copy. See `docs/building.md` for building a book and `docs/tools.md` for the linters.
+This repository, [zubuvzpevnik-package](https://github.com/Woromi/zubuvzpevnik-package), is the package, with its build scripts (`scripts/`: `build.sh`, the index sorter, `checkpaper.py` and the song linters) and the maintainer docs (`docs/`). The songs and the printed books live in the [ZubuvZpevnik](https://github.com/Woromi/ZubuvZpevnik) repository, which has this one as a submodule at `zubuvzpevnik/`; the Zpěvníkář app bundles its own copy. See `docs/building.md` for building a book and `docs/tools.md` for the linters.
 
 A customization of the [songs](https://songs.sourceforge.net/) LaTeX package, styled to look like my old songbook originally written in Word.
 

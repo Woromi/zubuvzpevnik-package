@@ -1,6 +1,6 @@
 # Building and releasing
 
-> **Where this lives.** The package, these scripts and docs are the `zubuvzpevnik` repository. A songbook checkout (ZubuvZpevnik) has it as a submodule at `zubuvzpevnik/`, so from the songbook the commands below are `zubuvzpevnik/scripts/<tool>`; the tools find the songbook above the package, or take `--songbook DIR`.
+> **Where this lives.** The package, these scripts and docs are the [zubuvzpevnik-package](https://github.com/Woromi/zubuvzpevnik-package) repository. A songbook checkout (ZubuvZpevnik) has it as a submodule at `zubuvzpevnik/`, so from the songbook the commands below are `zubuvzpevnik/scripts/<tool>`; the tools find the songbook above the package, or take `--songbook DIR`.
 
 ## Prerequisites
 
