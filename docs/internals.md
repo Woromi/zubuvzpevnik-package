@@ -1,7 +1,7 @@
 # Implementation notes
 
 Why the LaTeX package is built the way it is. *How to use* it is
-[`zubuvzpevnik/README.md`](../zubuvzpevnik/README.md); this file is for whoever
+[`README.md`](../README.md); this file is for whoever
 maintains the code.
 
 Everything here sits **on top of** the [`songs`](https://songs.sourceforge.net/)
@@ -294,7 +294,7 @@ whatsits, so they never ship and never reach the `.sxd` file.
 A song with **no `lang` key** is kept by `\excludelangs` and dropped by
 `\includelangs`, because `\IfSubStr{list}{}` is false in xstring for an empty
 needle. That asymmetry is intended — see the user-facing note in
-[`zubuvzpevnik/README.md`](../zubuvzpevnik/README.md#language-and-filtering).
+[`README.md`](../README.md#language-and-filtering).
 Note the test is a substring match, so a language name that is a substring of
 another in the list would collide; harmless with the current language set.
 

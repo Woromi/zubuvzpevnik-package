@@ -275,7 +275,7 @@ The boolean `\iflargepaper` (true in the A4 class, false in the A5 booklet) driv
 
 | Command / env | Effect |
 |---------------|--------|
-| `\smalleronsmallpage[frac]` | Shrinks its line on small paper only (default factor `0.5`). The A5 body is already 9 pt, so the bare form gives 8 pt — see [the A5 body size](../docs/internals.md#the-a5-body-size). |
+| `\smalleronsmallpage[frac]` | Shrinks its line on small paper only (default factor `0.5`). The A5 body is already 9 pt, so the bare form gives 8 pt — see [the A5 body size](docs/internals.md#the-a5-body-size). |
 | `\chordsoffonsmallpage` | Inside a part: keeps its chords on large paper, drops them on small. |
 | `\multivoiceinlineonsmallpage` | Second voice inline, `main (second)`, on small paper only; large paper keeps it stacked. |
 | `\begin{narrowonlargepaper} … \end{...}` | On large paper, sets the content in a narrower (80 %) column; full width otherwise. |
@@ -327,7 +327,7 @@ onto one page once and has since grown.
 actually typesetting every song — a song with a line too wide for the column
 does not count as fitting — and `--layout` builds the books and checks that the
 two pages of a spread song really came out facing; see
-[docs/tools.md](../docs/tools.md#checkpaperpy--paper-fit).
+[docs/tools.md](docs/tools.md#checkpaperpy--paper-fit).
 
 ## Customization hooks
 
@@ -340,7 +340,7 @@ Set these (usually in a class or the preamble) to restyle without touching the p
 | `\zub@stitlefont` | Song-title font. |
 | `\zub@meterfont` | Meter font. |
 | `\setchordwidth{…}` | Fixed chord width in `instrumental`. |
-| `\bindingleaf[content]` | One blank leaf (two pages); `malyzpevnik` only. The hand-bound case is glued to the outer side of the leaf at each end, so that side carries nothing. The optional content goes on the leaf's first page, which is the visible face only on the back leaf — that is where the imprint goes — see [the hardback book](../docs/internals.md#the-hardback-book-signatures-instead-of-one-booklet). |
+| `\bindingleaf[content]` | One blank leaf (two pages); `malyzpevnik` only. The hand-bound case is glued to the outer side of the leaf at each end, so that side carries nothing. The optional content goes on the leaf's first page, which is the visible face only on the back leaf — that is where the imprint goes — see [the hardback book](docs/internals.md#the-hardback-book-signatures-instead-of-one-booklet). |
 | `\secondvoiceraise` | Second-voice vertical tuck (multi-voice). |
 | `\rolestyle`, `\secondvoicestyle` | Fonts/colors for role labels and the second voice. |
 
@@ -392,7 +392,7 @@ marked `pap={a4,a5}` fits both. What differs is everything around the songs:
 - Page numbers are one arabic sequence from the title page to the last page,
   with the folio suppressed on the title page only. Nothing restarts the
   counter, which is why the indexes have to come last — see
-  [../docs/internals.md](../docs/internals.md#the-hardback-book-signatures-instead-of-one-booklet).
+  [docs/internals.md](docs/internals.md#the-hardback-book-signatures-instead-of-one-booklet).
 
 ### taborovyzpevnik.cls
 
@@ -404,7 +404,7 @@ The small **A5** camp songbook, based on `book` (two-sided, half-line spacing, m
 - `\makebackcover[note]` — inside back cover with a chord overview (`akordy`) and credits; the optional `note` is printed above the credit line.
 - `\padbookletpages[n]` — pad with blank pages up to a multiple of `n` (default 4) so `scripts/makebooklet.sh` can impose it as a printable booklet.
 
-The generated cover uses the SKAUT Bold and TheMix C5 fonts (Junák visual style; not in the repo). They are optional: without them the cover falls back to the text font and warns, so the book still builds. See [../docs/building.md](../docs/building.md#cover-fonts).
+The generated cover uses the SKAUT Bold and TheMix C5 fonts (Junák visual style; not in the repo). They are optional: without them the cover falls back to the text font and warns, so the book still builds. See [docs/building.md](docs/building.md#cover-fonts).
 
 ## Package / class options
 
@@ -422,7 +422,7 @@ Any other `songs` option works too — see the `songs` manual.
 ## Source layout
 
 Why any of it is written the way it is — the `songs` patches, the chord
-registers, the chorus capture — is in [../docs/internals.md](../docs/internals.md).
+registers, the chorus capture — is in [docs/internals.md](docs/internals.md).
 
 ```
 zubuvzpevnik/
