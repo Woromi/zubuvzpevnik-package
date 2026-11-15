@@ -8,7 +8,7 @@ A heuristic helper, not an authority: keys are genuinely ambiguous, so treat
 disagreements as "worth a look", not "wrong". It never edits files. How every
 rule below was chosen, and how to read the output: docs/tools.md
 
-Usage: scripts/checkkeys.py [--validate|--missing|--all|--explain|--parts] [PATH ...]
+Usage: scripts/checkkeys.py [--validate|--missing|--all|--explain|--parts] [--json] [PATH ...]
 """
 
 import argparse
@@ -20,7 +20,7 @@ from collections import Counter
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from songfile import songbook_root, strip_comments  # noqa: E402
+from songfile import print_json, songbook_root, strip_comments  # noqa: E402
 
 NAMES_SHARP = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 
@@ -579,6 +579,65 @@ def explain(path, repo):
           f"{gap}  [{cls}]\n")
 
 
+def split_suggestion(d):
+    """(per-type sequence, compound key) for a song whose part types split."""
+    seen, distinct = set(), []
+    for _, spec in d["split"]:
+        if spec not in seen:
+            seen.add(spec)
+            distinct.append(key_label(spec, d["german"]))
+    seq = "  ".join(f"{k}:{key_label(s, d['german'])}" for k, s in d["split"])
+    return seq, r"\rightarrow ".join(distinct)
+
+
+def scores_json(scored, n=3):
+    return [{"key": key_name(spec), "score": round(score, 2)} for score, spec in scored[:n]]
+
+
+def song_json(f, repo, d, detected, cls, detail=None):
+    """One song for --json; detail is "explain" or "parts" for those modes."""
+    out = {
+        "file": os.path.relpath(f, repo),
+        "stated": d["stated_raw"],
+        "stated_keys": [key_name(s) for s in d["stated_all"]],
+        "detected": key_name(detected) if detected else None,
+        "class": cls,
+        "margin": None if d["margin"] is None else round(d["margin"], 2),
+        "runner_up": key_name(d["scored"][1][1]) if len(d["scored"]) > 1 else None,
+        "capo": d["capo"], "tuning": d["tuning"], "transpose": d["transpose"],
+        "modulates": d["modulates"],
+        "key_from_parts": d["modulation"],
+        "chords": len(d["chords"]),
+        "split": None,
+    }
+    if d["split"]:
+        out["split"] = {"parts": [{"type": k, "key": key_name(s)}
+                                  for k, s in d["split"]],
+                        "suggest": split_suggestion(d)[1]}
+    if detail == "explain" and d["sounding"]:
+        snd = d["sounding"]
+        out.update({
+            "naming": "german" if d["german"] else "english",
+            "first": key_name(snd[0]), "last": key_name(snd[-1]),
+            "ending": key_name(d["ending"]),
+            "chord_counts": {key_name(c): n for c, n in Counter(snd).most_common()},
+            "candidates": [dict(c, relative=key_name(relative(spec)))
+                           for c, (_, spec) in zip(scores_json(d["scored"], 4), d["scored"])],
+        })
+    if detail == "parts":
+        ps = parts_sounding(d)
+        out["parts"] = [{
+            "type": kind, "shift": lvl - d["transpose"],
+            "cut_short": is_truncated_reprise(i, ps),
+            "chords": [key_name(c) for c in snd],
+            "best": scores_json(score_keys(snd, snd[-1])),
+        } for i, (kind, snd, _, lvl) in enumerate(ps)]
+        out["pooled"] = [{"type": kind, "chords": len(pool),
+                          "best": scores_json(score_keys(pool, pool[-1]))}
+                         for kind, pool in sorted(part_type_pools(d).items())]
+    return out
+
+
 def main():
     # Die quietly when piped into head/less instead of dumping a traceback.
     signal.signal(signal.SIGPIPE, signal.SIG_DFL)
@@ -589,6 +648,8 @@ def main():
     ap.add_argument("--all", action="store_true", help="show every song")
     ap.add_argument("--explain", action="store_true", help="show the detector's reasoning")
     ap.add_argument("--parts", action="store_true", help="detect a key per song part")
+    ap.add_argument("--json", action="store_true",
+                    help="emit JSON (see docs/tools.md#machine-readable-output)")
     ap.add_argument("--songbook", metavar="DIR",
                     help="the songbook checkout (default: the one this package sits in, "
                          "or the one around the working directory)")
@@ -604,6 +665,12 @@ def main():
             files += [f for f in sorted(p.rglob("*.tex")) if "tinwhistle" not in f.parts]
         else:
             files += [p]
+
+    if args.json and (args.explain or args.parts):
+        detail = "explain" if args.explain else "parts"
+        print_json({"tool": "checkkeys",
+                    "songs": [song_json(f, repo, *analyze(f), detail=detail) for f in files]})
+        return 0
 
     if args.explain:
         for f in files:
@@ -624,6 +691,13 @@ def main():
         counts = Counter(cls for _, _, _, cls in rows)
         graded = [r for r in rows if r[3] not in ("propose", "no-chords")]
         agree = sum(1 for r in graded if r[3] in ("match", "relative", "tie"))
+        if args.json:
+            print_json({"tool": "checkkeys",
+                        "counts": {cls: counts.get(cls, 0) for cls in
+                                   ("match", "tie", "relative", "parallel", "mismatch",
+                                    "propose", "no-chords")},
+                        "agreeing": agree, "graded": len(graded)})
+            return 0
         print("Agreement vs. existing keys (chord-based detector):")
         for cls in ("match", "tie", "relative", "parallel", "mismatch", "propose", "no-chords"):
             print(f"  {cls:<10} {counts.get(cls, 0)}")
@@ -634,6 +708,17 @@ def main():
 
     # Strongest disagreements first; ties land at the bottom, next to matches
     rows.sort(key=lambda r: (-(r[1]["margin"] or 0), os.path.relpath(r[0], repo)))
+
+    if args.json:
+        if args.missing:
+            shown = [r for r in rows if r[3] == "propose"]
+        else:
+            shown = [r for r in rows
+                     if args.all or r[3] not in ("match", "tie", "no-chords")]
+        print_json({"tool": "checkkeys",
+                    "songs": [song_json(f, repo, d, detected, cls)
+                              for f, d, detected, cls in shown]})
+        return 0
 
     for f, d, detected, cls in rows:
         rel = os.path.relpath(f, repo)
@@ -665,14 +750,8 @@ def main():
         print(f"  stated={{{d['stated_raw'] or '-'}}}={key_names(d['stated_all'])}  detected={key_name(detected)}"
               f"{gap}{shift}  [{tag}]")
         if d["split"]:
-            seen, distinct = set(), []
-            for _, spec in d["split"]:
-                if spec not in seen:
-                    seen.add(spec)
-                    distinct.append(key_label(spec, d["german"]))
-            seq = "  ".join(f"{k}:{key_label(s, d['german'])}" for k, s in d["split"])
-            print(f"  part types differ ({seq})"
-                  f" -> try key={{{r'\rightarrow '.join(distinct)}}}")
+            seq, suggest = split_suggestion(d)
+            print(f"  part types differ ({seq}) -> try key={{{suggest}}}")
     return 0
 
 

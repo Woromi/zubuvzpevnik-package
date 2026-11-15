@@ -5,10 +5,11 @@ Read-only developer tool. The index is sorted by songidx.lua (Czech collation,
 English articles rotated to the end), so the check sorts the project's songs
 with that very script rather than guessing at its rules. See docs/tools.md.
 
-Usage: scripts/checkorder.py PROJECT.tex ...
+Usage: scripts/checkorder.py [--json] PROJECT.tex ...
 Exit status: 0 = in order, 1 = out of order, 2 = no songs found.
 """
 
+import argparse
 import re
 import subprocess
 import sys
@@ -16,7 +17,8 @@ import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from songfile import main_lang, parse_song, songbook_root, strip_comments  # noqa: E402
+from songfile import (main_lang, parse_song, print_json, songbook_root,  # noqa: E402
+                      strip_comments)
 
 REPO = songbook_root()  # the projects named lie inside it
 SONG_DIRS = [REPO / "songs" / "chords", REPO / "songs" / "tinwhistle"]
@@ -76,18 +78,27 @@ def index_order(songs):
 
 
 def main():
-    projects = [Path(p) for p in sys.argv[1:]]
-    if not projects:
+    ap = argparse.ArgumentParser(description="Check a book's song order against its index.")
+    ap.add_argument("projects", nargs="*", type=Path, metavar="PROJECT.tex")
+    ap.add_argument("--json", action="store_true",
+                    help="emit JSON (see docs/tools.md#machine-readable-output)")
+    args = ap.parse_args()
+    if not args.projects:
         print(__doc__.strip().splitlines()[-2], file=sys.stderr)
         return 2
-    status = 0
-    for project in projects:
+    status, report = 0, []
+    for project in args.projects:
+        record = {"file": str(project), "songs": 0, "in_order": None,
+                  "out_of_order": [], "error": None}
+        report.append(record)
         if not project.is_file():
+            record["error"] = "no such file"
             print(f"{project}: no such file", file=sys.stderr)
             status = max(status, 2)
             continue
         songs = book_songs(project)
         if not songs:
+            record["error"] = "no songs found"
             print(f"{project}: no songs found", file=sys.stderr)
             status = max(status, 2)
             continue
@@ -95,16 +106,26 @@ def main():
         # a pair is excused when the song the book puts first carries the mark
         wrong = [(a, b) for a, b in zip(order, order[1:])
                  if b < a and not songs[b - 1][3]]
+        record["songs"], record["in_order"] = len(songs), not wrong
+        # the index lists the song at book position a first, b next
+        record["out_of_order"] = [
+            {"first": {"title": songs[a - 1][0], "input": songs[a - 1][2]},
+             "second": {"title": songs[b - 1][0], "input": songs[b - 1][2]}}
+            for a, b in wrong]
+        if wrong:
+            status = max(status, 1)
+        if args.json:
+            continue
         if not wrong:
             print(f"{project}: {len(songs)} songs, in index order")
             continue
-        status = max(status, 1)
         print(f"{project}: out of index order")
-        for a, b in wrong:
-            # the index lists the song at book position a first, b next
-            first, second = songs[a - 1], songs[b - 1]
-            print(f"  '{first[0]}' ({first[2]}) sorts before '{second[0]}' "
-                  f"({second[2]}), but the book has it after")
+        for pair in record["out_of_order"]:
+            first, second = pair["first"], pair["second"]
+            print(f"  '{first['title']}' ({first['input']}) sorts before '{second['title']}' "
+                  f"({second['input']}), but the book has it after")
+    if args.json:
+        print_json({"tool": "checkorder", "projects": report})
     return status
 
 

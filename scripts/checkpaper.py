@@ -24,7 +24,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from songfile import PACKAGE_DIR, songbook_root  # noqa: E402
 from songfile import (collect_song_files, find_matching, input_name,  # noqa: E402
-                      parse_song, strip_comments)
+                      parse_song, print_json, strip_comments)
 
 # Class -> the paper it typesets. Several classes can share a paper: the A5 ones
 # share zubuvzpevnik/a5layout.cfg, so a song measures the same on either.
@@ -42,7 +42,7 @@ SPREAD_CLASSES = {"taborovyzpevnik", "malyzpevnik"}
 # spelling is in checksongs.py's KNOWN_PAPERS and in feature/metadata.cfg. Only
 # a paper whose class is two-sided can promise the two pages face each other,
 # so a4 has no such mark and a song needing two A4 pages still fits nothing.
-# --write never writes this one; see report_measured for why.
+# --write never writes this one; see measured_changes for why.
 SPREAD_SUFFIX = "x2"
 SPREAD_PAPERS = {CLASS_PAPER[cls] for cls in SPREAD_CLASSES}
 
@@ -411,10 +411,30 @@ def measured_as(n, broken):
     return f"{plural(n, 'page')}, {plural(len(broken), 'line')} too wide: {wrap_note(broken)}"
 
 
-def report_flags(parsed, repo_root, summary_only):
+def wraps_json(broken):
+    """Broken lines for --json: the part a line is counted from, and its number."""
+    names = {"r": "chorus", "v": "song"}
+    return [{"part": names.get(part, part), "line": n} for part, n in broken]
+
+
+def flag_groups(parsed):
+    """Songs grouped by their pap key as written, "(none)" for no key."""
     groups = {}
     for f, info in parsed:
         groups.setdefault(",".join(declared(info)) or "(none)", []).append((f, info))
+    return groups
+
+
+def per_paper_counts(parsed):
+    per_paper = {}
+    for f, info in parsed:
+        for p in declared(info):
+            per_paper[p] = per_paper.get(p, 0) + 1
+    return per_paper
+
+
+def report_flags(parsed, repo_root, summary_only):
+    groups = flag_groups(parsed)
     total = len(parsed)
 
     if not summary_only:
@@ -431,41 +451,55 @@ def report_flags(parsed, repo_root, summary_only):
     for papers in sorted(groups):
         n = len(groups[papers])
         print(f"  {papers:<12} {n:>3}  {100 * n / total:5.1f}%  {bar(n, total)}")
-    per_paper = {}
-    for f, info in parsed:
-        for p in declared(info):
-            per_paper[p] = per_paper.get(p, 0) + 1
+    per_paper = per_paper_counts(parsed)
     print("Songs fitting each paper:")
     for p in sorted(per_paper):
         print(f"  {p:<12} {per_paper[p]:>3}  {100 * per_paper[p] / total:5.1f}%  {bar(per_paper[p], total)}")
 
 
-def report_projects(parsed, repo_root):
+def flags_json(parsed, repo_root, summary_only):
+    out = {}
+    if not summary_only:
+        out["songs"] = [{"file": os.path.relpath(f, repo_root), "title": info["title"],
+                         "pap": declared(info)}
+                        for f, info in sorted(parsed, key=lambda r: str(r[0]))]
+    out["by_declared"] = {k: len(v) for k, v in sorted(flag_groups(parsed).items())}
+    out["per_paper"] = dict(sorted(per_paper_counts(parsed).items()))
+    return out
+
+
+def project_checks(parsed, repo_root):
     """Each project against the paper its class typesets: a song built into a
     book it is not marked for is one nobody has checked at that size."""
     by_name = by_input_name(parsed, repo_root)
-    print("\nProjects:")
-    unchecked = 0
+    out = []
     for tex, _, paper, groups in project_files(repo_root):
-        rel = os.path.relpath(tex, repo_root)
         songs = [s for group in groups for s in group]
+        rec = {"file": os.path.relpath(tex, repo_root), "paper": paper, "songs": len(songs)}
+        if paper is not None:
+            rec["not_marked"] = [s for s in songs
+                                 if s in by_name and not claim(declared(by_name[s]), paper)]
+            rec["not_scanned"] = [s for s in songs if s not in by_name]
+            rec["marked"] = len(songs) - len(rec["not_marked"]) - len(rec["not_scanned"])
+        out.append(rec)
+    return out
+
+
+def report_projects(checks):
+    print("\nProjects:")
+    for rec in checks:
+        rel, paper = rec["file"], rec["paper"]
         if paper is None:
             print(f"  {rel}: unknown class, skipped")
             continue
-        missing = [s for s in songs
-                   if s in by_name and not claim(declared(by_name[s]), paper)]
-        unknown = [s for s in songs if s not in by_name]
-        note = f"{len(songs)} songs, {len(songs) - len(missing) - len(unknown)} marked {paper}"
-        print(f"  {rel} [{paper}]: {note}")
-        for s in missing:
+        print(f"  {rel} [{paper}]: {rec['songs']} songs, {rec['marked']} marked {paper}")
+        for s in rec["not_marked"]:
             print(f"      ⚠ {s} is not marked as fitting {paper}")
-        for s in unknown:
+        for s in rec["not_scanned"]:
             print(f"      ⚠ {s} was not scanned")
-        unchecked += len(missing)
-    return unchecked
 
 
-def report_measured(parsed, repo_root, paper, pages, wraps, write):
+def measured_changes(parsed, repo_root, paper, pages, wraps):
     """Measured room against the flags. A song fits a paper when it takes one
     page of it, or two facing ones, and no line of it had to be broken.
 
@@ -473,8 +507,7 @@ def report_measured(parsed, repo_root, paper, pages, wraps, write):
     one meant to open across a spread, or one nobody has tightened onto a page
     yet, and only a person knows which. So --write records `paper` or nothing,
     and pap={<paper>x2} stays something a human writes."""
-    print(f"\nMeasured on {paper} ({PAPER_CLASS[paper]}):")
-    changes, offers, missing = [], [], []
+    changes, offers, missing, rows = [], [], [], []
     for f, info in sorted(parsed, key=lambda r: str(r[0])):
         name = input_name(f, repo_root)
         if pages.get(name) is None:
@@ -482,16 +515,27 @@ def report_measured(parsed, repo_root, paper, pages, wraps, write):
             continue
         n, broken = pages[name], wraps.get(name, [])
         claimed, found = claim(declared(info), paper), fits(paper, n, broken)
+        rows.append((f, info, claimed, found, n, broken))
         if claimed == found:
             continue
         if found == 2 and claimed == 0:
             offers.append((f, info, n, broken))
         else:
             changes.append((f, info, claimed, found, n, broken))
+    return {
+        "rows": rows, "changes": changes, "offers": offers, "missing": missing,
+        "add": [c for c in changes if c[2] == 0],
+        "drop": [c for c in changes if c[3] != 1],
+        "tighter": [c for c in changes if c[2] == 2 and c[3] == 1],
+        "room": [fits(paper, n, wraps.get(name)) for name, n in pages.items()],
+        "wide": sum(1 for name in pages if wraps.get(name)),
+    }
 
-    add = [c for c in changes if c[2] == 0]
-    drop = [c for c in changes if c[3] != 1]
-    tighter = [c for c in changes if c[2] == 2 and c[3] == 1]
+
+def report_measured(m, repo_root, paper):
+    print(f"\nMeasured on {paper} ({PAPER_CLASS[paper]}):")
+    add, drop, tighter, offers, missing = (m["add"], m["drop"], m["tighter"],
+                                           m["offers"], m["missing"])
     for label, rows, sign in (
             (f"Fits one {paper} page but is not marked for it", add, "+"),
             (f"Marked for {paper} but no longer fits it", drop, "-"),
@@ -518,39 +562,64 @@ def report_measured(parsed, repo_root, paper, pages, wraps, write):
         print(f"\n  Not measured ({len(missing)}): " +
               ", ".join(os.path.relpath(f, repo_root) for f, _ in missing))
 
-    room = [fits(paper, n, wraps.get(name)) for name, n in pages.items()]
-    wide = sum(1 for name in pages if wraps.get(name))
+    room = m["room"]
     spread_note = (f" and {room.count(2)} fit two facing ones"
                    if paper in SPREAD_PAPERS else "")
     print(f"\n{'=' * 60}")
-    print(f"{room.count(1)}/{len(pages)} songs fit one {paper} page{spread_note}; "
+    print(f"{room.count(1)}/{len(room)} songs fit one {paper} page{spread_note}; "
           f"{len(add)} to add, {len(drop)} to remove, {len(tighter)} to tighten"
           + (f", {len(offers)} to look at by hand." if offers else "."))
-    if wide:
-        print(f"{plural(wide, 'song')} have a line too wide for {paper}, which is "
+    if m["wide"]:
+        print(f"{plural(m['wide'], 'song')} have a line too wide for {paper}, which is "
               "what stops them fitting it.")
 
-    if write:
-        for f, info, _, found, _, _ in changes:
-            others = [p for p in declared(info) if p not in (paper, paper + SPREAD_SUFFIX)]
-            set_pap(f, sorted(others + ([paper] if found == 1 else [])))
-        print(f"Wrote the pap key in {len(changes)} file(s).")
-    return len(changes)
+
+def measured_json(m, repo_root, paper):
+    """Every measured song, with what the flag says and what --write would do."""
+    def change(claimed, found):
+        if claimed == found:
+            return None
+        if found == 2 and claimed == 0:
+            return "offer"
+        return "tighten" if claimed == 2 and found == 1 else "add" if claimed == 0 else "drop"
+    room = m["room"]
+    return {
+        "paper": paper, "class": PAPER_CLASS[paper],
+        "songs": [{"file": os.path.relpath(f, repo_root), "title": info["title"],
+                   "pages": n, "wide_lines": wraps_json(broken),
+                   "marked": entry(paper, claimed), "fits": entry(paper, found),
+                   "change": change(claimed, found)}
+                  for f, info, claimed, found, n, broken in m["rows"]],
+        "not_measured": [os.path.relpath(f, repo_root) for f, _ in m["missing"]],
+        "summary": {"measured": len(room), "fit_one": room.count(1),
+                    "fit_spread": room.count(2) if paper in SPREAD_PAPERS else None,
+                    "add": len(m["add"]), "drop": len(m["drop"]),
+                    "tighten": len(m["tighter"]), "offer": len(m["offers"]),
+                    "wide": m["wide"]},
+    }
 
 
-def report_layout(parsed, repo_root, measured, keep=False, verbose=False):
+def write_measured(m, paper):
+    """Record the measurement in the songs' pap keys; returns the files changed."""
+    for f, info, _, found, _, _ in m["changes"]:
+        others = [p for p in declared(info) if p not in (paper, paper + SPREAD_SUFFIX)]
+        set_pap(f, sorted(others + ([paper] if found == 1 else [])))
+    return len(m["changes"])
+
+
+def layout_checks(parsed, repo_root, measured, keep=False, verbose=False):
     """Build each project and check the pages its songs really landed on.
 
     Two things somebody playing from the book notices and a page count does not:
     a song on two pages that a page turn falls between, and a blank page left
-    in the middle of the book to keep one from doing so."""
+    in the middle of the book to keep one from doing so. Notes are "warn" (a
+    problem, counted for --strict) or "info"."""
     by_name = by_input_name(parsed, repo_root)
-    print("\nBook layout:")
-    problems = 0
+    out = []
     for tex, cls, paper, groups in project_files(repo_root):
-        rel = os.path.relpath(tex, repo_root)
+        rec = {"file": os.path.relpath(tex, repo_root), "paper": paper}
+        out.append(rec)
         if paper is None:
-            print(f"  {rel}: unknown class, skipped")
             continue
         pages = measured[paper][0]
         starts, offset, sheets = build_project(repo_root, tex, keep, verbose)
@@ -565,10 +634,16 @@ def report_layout(parsed, repo_root, measured, keep=False, verbose=False):
                 ordinal += max(1, by_name[name]["n_begin"]) if name in by_name else 1
 
         notes, used, on_spread, longer = [], [], 0, 0
+
+        def note(severity, kind, song, message, **extra):
+            notes.append({"severity": severity, "kind": kind, "song": song,
+                          "message": message, **extra})
+
         for i, (name, key) in enumerate(order):
             start, n = starts.get(key), pages.get(name)
             if start is None or n is None:
-                notes.append(f"· {name} was not measured, so its pages are unknown")
+                note("info", "not-measured", name,
+                     f"{name} was not measured, so its pages are unknown")
                 continue
             used += [start, start + n - 1]
             # Where the next song of the same environment begins; anything
@@ -579,35 +654,53 @@ def report_layout(parsed, repo_root, measured, keep=False, verbose=False):
             if n == 2:
                 on_spread += 1
                 if not spread:
-                    notes.append(f"· {name} takes 2 pages, and this book is not "
-                                 "two-sided, so it cannot lay them side by side")
+                    note("info", "one-sided", name,
+                         f"{name} takes 2 pages, and this book is not "
+                         "two-sided, so it cannot lay them side by side", pages=[start, start + 1])
                 elif (start + offset) % 2:
-                    notes.append(f"⚠ {name} takes pages {start} and {start + 1}, "
-                                 "which a page turn falls between")
-                    problems += 1
+                    note("warn", "page-turn", name,
+                         f"{name} takes pages {start} and {start + 1}, "
+                         "which a page turn falls between", pages=[start, start + 1])
             elif n > 2:
                 longer += 1
-                notes.append(f"· {name} takes {n} pages, so no ordering of the "
-                             "book can spare it a page turn")
+                note("info", "over-two-pages", name,
+                     f"{name} takes {n} pages, so no ordering of the "
+                     "book can spare it a page turn", pages=list(range(start, start + n)))
             if nxt < start + n:
-                notes.append(f"⚠ {name} was measured at {plural(n, 'page')} but the "
-                             f"book gives it {plural(nxt - start, 'page')}")
-                problems += 1
+                note("warn", "squeezed", name,
+                     f"{name} was measured at {plural(n, 'page')} but the "
+                     f"book gives it {plural(nxt - start, 'page')}", measured=n, given=nxt - start)
             for blank in range(start + n, nxt):
-                notes.append(f"⚠ page {blank} is blank, before {after[0]}")
-                problems += 1
+                note("warn", "blank-page", after[0], f"page {blank} is blank, before {after[0]}",
+                     page=blank)
 
-        where = f"pages {min(used)}-{max(used)} of {sheets}" if used else "no pages"
+        rec.update({"class": cls, "spreads": spread, "songs": len(order),
+                    "first_page": min(used) if used else None,
+                    "last_page": max(used) if used else None, "sheets": sheets,
+                    "on_two_pages": on_spread, "over_two_pages": longer, "notes": notes})
+    return out
+
+
+def report_layout(checks):
+    print("\nBook layout:")
+    for rec in checks:
+        rel, paper = rec["file"], rec["paper"]
+        if paper is None:
+            print(f"  {rel}: unknown class, skipped")
+            continue
+        spread = rec["spreads"]
+        where = (f"pages {rec['first_page']}-{rec['last_page']} of {rec['sheets']}"
+                 if rec["first_page"] is not None else "no pages")
         pair = "on a spread" if spread else "on two pages"
-        counts = "".join([f", {on_spread} {pair}" if on_spread else "",
-                          f", {longer} over two pages" if longer else ""])
+        counts = "".join([f", {rec['on_two_pages']} {pair}" if rec["on_two_pages"] else "",
+                          f", {rec['over_two_pages']} over two pages"
+                          if rec["over_two_pages"] else ""])
         print(f"  {rel} [{paper}{', spreads' if spread else ''}]: "
-              f"{len(order)} songs on {where}{counts}")
-        for note in notes:
-            print(f"      {note}")
-        if not notes:
+              f"{rec['songs']} songs on {where}{counts}")
+        for note in rec["notes"]:
+            print(f"      {'⚠' if note['severity'] == 'warn' else '·'} {note['message']}")
+        if not rec["notes"]:
             print("      ✓ no page turn inside a song, no blank page between them")
-    return problems
 
 
 def main():
@@ -623,6 +716,8 @@ def main():
     ap.add_argument("--keep", action="store_true", help="keep the probe builds")
     ap.add_argument("-v", "--verbose", action="store_true", help="show lualatex errors")
     ap.add_argument("--strict", action="store_true", help="exit non-zero on any disagreement")
+    ap.add_argument("--json", action="store_true",
+                    help="emit JSON (see docs/tools.md#machine-readable-output)")
     ap.add_argument("--songbook", metavar="DIR",
                     help="the songbook checkout (default: the one this package sits in, "
                          "or the one around the working directory)")
@@ -641,6 +736,7 @@ def main():
         print("No .tex song files found.", file=sys.stderr)
         return 2
     parsed = [(f, parse_song(f)) for f in files]
+    report = {"tool": "checkpaper"}
 
     if args.measure or args.layout:
         # A book needs the page count of every song it holds, so --layout
@@ -653,16 +749,39 @@ def main():
         disagreements = problems = 0
         if args.measure:
             pages, wraps = measured[args.measure]
-            disagreements = report_measured(parsed, repo_root, args.measure,
-                                            pages, wraps, args.write)
+            m = measured_changes(parsed, repo_root, args.measure, pages, wraps)
+            disagreements = len(m["changes"])
+            if args.json:
+                report["measure"] = measured_json(m, repo_root, args.measure)
+            else:
+                report_measured(m, repo_root, args.measure)
             if args.write:
+                written = write_measured(m, args.measure)
+                if args.json:
+                    report["measure"]["written"] = written
+                else:
+                    print(f"Wrote the pap key in {written} file(s).")
                 disagreements = 0
         if args.layout:
-            problems = report_layout(parsed, repo_root, measured, args.keep, args.verbose)
+            checks = layout_checks(parsed, repo_root, measured, args.keep, args.verbose)
+            problems = sum(1 for rec in checks for n in rec.get("notes", [])
+                           if n["severity"] == "warn")
+            if args.json:
+                report["layout"] = checks
+            else:
+                report_layout(checks)
+        if args.json:
+            print_json(report)
         return 1 if (args.strict and (disagreements or problems)) else 0
 
-    report_flags(parsed, repo_root, args.summary)
-    unchecked = report_projects(parsed, repo_root)
+    checks = project_checks(parsed, repo_root)
+    unchecked = sum(len(rec.get("not_marked", [])) for rec in checks)
+    if args.json:
+        report.update(flags_json(parsed, repo_root, args.summary), projects=checks)
+        print_json(report)
+    else:
+        report_flags(parsed, repo_root, args.summary)
+        report_projects(checks)
     return 1 if (args.strict and unchecked) else 0
 
 

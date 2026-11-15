@@ -1,9 +1,10 @@
 """Reading a song .tex file: comments, braces, the \\beginsong prelude.
 
-No policy lives here -- only what all three tools under scripts/ need to
+No policy lives here -- only what the tools under scripts/ need to
 read the song database the same way. See docs/tools.md.
 """
 
+import json
 import sys
 from pathlib import Path
 
@@ -229,3 +230,9 @@ def songbook_root(explicit=None):
             if (candidate / "songs" / "chords").is_dir():
                 return candidate
     sys.exit("No songbook found above the package or the working directory: pass --songbook DIR")
+
+
+def print_json(obj):
+    """--json output: one object on stdout. See docs/tools.md#machine-readable-output."""
+    json.dump(obj, sys.stdout, ensure_ascii=False, indent=2)
+    sys.stdout.write("\n")

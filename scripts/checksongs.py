@@ -14,12 +14,13 @@ import os
 import re
 import sys
 import unicodedata
+from collections import namedtuple
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from songfile import songbook_root  # noqa: E402
 from songfile import (collect_song_files, input_name, main_lang,  # noqa: E402
-                      parse_song, song_langs, strip_comments)
+                      parse_song, print_json, song_langs, strip_comments)
 
 # --- Text that will not reach the PDF as intended ---------------------------
 # Open Sans has no arrow or accidental glyphs, and LuaLaTeX drops a missing
@@ -112,6 +113,9 @@ class Severity:
 
 SYMBOL = {Severity.ERROR: "✗", Severity.WARN: "⚠"}  # ✗  ⚠
 
+# code is stable for --json consumers; line is the first one, when there is one.
+Issue = namedtuple("Issue", "severity code message line", defaults=(None,))
+
 
 def check_rendering(info):
     """Flag text that will not reach the PDF as intended. Each distinct offender
@@ -133,42 +137,44 @@ def check_rendering(info):
                 bad[ch] = [lineno, 1, hint]
     for ch, (lineno, count, hint) in sorted(bad.items()):
         times = "" if count == 1 else f", {count}x"
-        issues.append((Severity.ERROR,
-                       f"'{ch}' (U+{ord(ch):04X}) has no glyph in the songbook font "
-                       f"and is dropped silently - use {hint}  [line {lineno}{times}]"))
+        issues.append(Issue(Severity.ERROR, "no-glyph",
+                            f"'{ch}' (U+{ord(ch):04X}) has no glyph in the songbook font "
+                            f"and is dropped silently - use {hint}  [line {lineno}{times}]",
+                            lineno))
 
     for macro, hint in BROKEN_MACROS.items():
         n = text.count(macro)
         if n:
-            issues.append((Severity.ERROR,
-                           f"{macro} resolves through the text font, which has no arrow, "
-                           f"so it is dropped silently - use {hint}  [{n}x]"))
+            issues.append(Issue(Severity.ERROR, "no-glyph-macro",
+                                f"{macro} resolves through the text font, which has no arrow, "
+                                f"so it is dropped silently - use {hint}  [{n}x]"))
 
     for macro, better in PREFER_SONGS_ACCIDENTAL.items():
         # \flat must not also match \flattening etc., and \sharp not \sharps
         n = len(re.findall(re.escape(macro) + r"(?![a-zA-Z])", text))
         if n:
-            issues.append((Severity.WARN,
-                           f"{macro} draws a different glyph than the chords do - "
-                           f"use songs' {better}  [{n}x]"))
+            issues.append(Issue(Severity.WARN, "math-accidental",
+                                f"{macro} draws a different glyph than the chords do - "
+                                f"use songs' {better}  [{n}x]"))
 
     key = info["keys"].get("key", "")
     if ASCII_FLAT_KEY.search(key):
-        issues.append((Severity.WARN,
-                       f"key={{{key}}} spells a flat as 'b' - use \\flt so it prints as a flat sign"))
+        issues.append(Issue(Severity.WARN, "ascii-flat",
+                            f"key={{{key}}} spells a flat as 'b' - use \\flt so it prints "
+                            "as a flat sign"))
     roots = sorted(set(ASCII_FLAT_CHORD.findall(text)))
     basses = sorted(set(ASCII_FLAT_BASS.findall(text)))
     if roots or basses:
         spelled = ", ".join([f"\\[{r}b...]" for r in roots]
                             + [f"\\[.../{b}b]" for b in basses])
-        issues.append((Severity.WARN,
-                       f"chord spells a flat as 'b' ({spelled}) - use & so songs.sty "
-                       "prints a flat sign"))
+        issues.append(Issue(Severity.WARN, "ascii-flat",
+                            f"chord spells a flat as 'b' ({spelled}) - use & so songs.sty "
+                            "prints a flat sign"))
     n = len(SPELLED_NOCHORD.findall(text))
     if n:
-        issues.append((Severity.WARN,
-                       "no-chord mark is spelled out - use \\[\\nochord], or the C is "
-                       f"read as a note and transposed with the song  [{n}x]"))
+        issues.append(Issue(Severity.WARN, "spelled-nochord",
+                            "no-chord mark is spelled out - use \\[\\nochord], or the C is "
+                            f"read as a note and transposed with the song  [{n}x]"))
     return issues
 
 
@@ -273,21 +279,23 @@ def check_naming(info):
                 found.setdefault(name, [lineno, 0])[1] += 1
     for name, (lineno, count) in sorted(found.items()):
         times = "" if count == 1 else f", {count}x"
-        issues.append((Severity.ERROR, f"chord {name}: {fix}  [line {lineno}{times}]"))
+        issues.append(Issue(Severity.ERROR, "note-naming",
+                            f"chord {name}: {fix}  [line {lineno}{times}]", lineno))
     key = info["keys"].get("key", "")
     if key and wrong.search(key.strip()):
-        issues.append((Severity.ERROR, f"key={{{key}}}: {fix}"))
+        issues.append(Issue(Severity.ERROR, "note-naming", f"key={{{key}}}: {fix}"))
     tun = info["keys"].get("tun", "").split()
     if german:
         flats = [t for t in tun if "\\flt" in t or "\\shrp" in t]
         if any(NOTE_B_FLAT.match(t) for t in tun):
-            issues.append((Severity.ERROR, f"tun: {fix}"))
+            issues.append(Issue(Severity.ERROR, "note-naming", f"tun: {fix}"))
         elif "B" in tun and not flats:
             # among natural strings a bare B is meant as B-natural
-            issues.append((Severity.ERROR, "tun: a B-natural string is H in Czech naming "
-                                           "(B reads as B-flat)"))
+            issues.append(Issue(Severity.ERROR, "note-naming",
+                                "tun: a B-natural string is H in Czech naming "
+                                "(B reads as B-flat)"))
     elif "H" in tun:
-        issues.append((Severity.ERROR, f"tun: {fix}"))
+        issues.append(Issue(Severity.ERROR, "note-naming", f"tun: {fix}"))
     return issues
 
 
@@ -297,9 +305,9 @@ def check_multivoice(info):
     for lineno, line in enumerate((info.get("text") or "").splitlines(), 1):
         for m in MULTIVOICE.finditer(line):
             if CHORD_MARK.search(m.group(1) + m.group(2)):
-                issues.append((Severity.ERROR,
-                               f"chord inside {m.group(0)} - put it before: "
-                               f"^{{\\multivoice{{..}}{{..}}}}  [line {lineno}]"))
+                issues.append(Issue(Severity.ERROR, "chord-in-multivoice",
+                                    f"chord inside {m.group(0)} - put it before: "
+                                    f"^{{\\multivoice{{..}}{{..}}}}  [line {lineno}]", lineno))
     return issues
 
 
@@ -309,7 +317,7 @@ def check_fingers(info):
             if not has_fingers(fing)]
     if not bare:
         return []
-    return [(Severity.WARN, "chord diagram without finger numbers: "
+    return [Issue(Severity.WARN, "gtab-no-fingers", "chord diagram without finger numbers: "
              + ", ".join(dict.fromkeys(bare))
              + "  (add them after a colon: \\gtab{Am}{X02210:002310})")]
 
@@ -319,54 +327,60 @@ def song_kind(path):
 
 
 def check_song(path, info):
-    """Return a list of (severity, message) issues for one parsed song."""
+    """Return the list of Issues for one parsed song."""
     issues = []
     if info["error"]:
-        issues.append((Severity.ERROR, info["error"]))
+        issues.append(Issue(Severity.ERROR, "parse", info["error"]))
         return issues
     if info["n_begin"] != 1:
-        issues.append((Severity.WARN, f"{info['n_begin']} \\beginsong in file (expected 1)"))
+        issues.append(Issue(Severity.WARN, "song-count",
+                            f"{info['n_begin']} \\beginsong in file (expected 1)"))
     if info["n_end"] != info["n_begin"]:
-        issues.append((Severity.ERROR, f"{info['n_begin']} \\beginsong but {info['n_end']} \\endsong"))
+        issues.append(Issue(Severity.ERROR, "unbalanced-song",
+                            f"{info['n_begin']} \\beginsong but {info['n_end']} \\endsong"))
     if not info["title"]:
-        issues.append((Severity.ERROR, "empty title"))
+        issues.append(Issue(Severity.ERROR, "empty-title", "empty title"))
 
     keys = info["keys"]
     for req in REQUIRED:
         if req not in keys or not keys[req]:
-            issues.append((Severity.ERROR, f"missing required key '{req}'"))
+            issues.append(Issue(Severity.ERROR, "missing-required", f"missing required key '{req}'"))
 
     recommended = RECOMMENDED_TINWHISTLE if song_kind(path) == "tinwhistle" else RECOMMENDED_CHORDS
     missing = [k for k in recommended if k not in keys or not keys[k]]
     if missing:
-        issues.append((Severity.WARN, "missing recommended: " + ", ".join(missing)))
+        issues.append(Issue(Severity.WARN, "missing-recommended",
+                            "missing recommended: " + ", ".join(missing)))
 
     unknown = sorted(k for k in keys if k not in KNOWN_KEYS)
     if unknown:
-        issues.append((Severity.WARN, "unknown key (typo?): " + ", ".join(unknown)))
+        issues.append(Issue(Severity.WARN, "unknown-key", "unknown key (typo?): " + ", ".join(unknown)))
 
     for lang in song_langs(keys):
         if lang not in KNOWN_LANGS:
-            issues.append((Severity.WARN, f"unusual language '{lang}' (typo? add to KNOWN_LANGS if intended)"))
+            issues.append(Issue(Severity.WARN, "unknown-lang",
+                                f"unusual language '{lang}' (typo? add to KNOWN_LANGS if intended)"))
 
     # A paper the classes do not name can never match, so the song silently
     # counts as fitting nothing; see checkpaper.py.
     bad_paper = [p for p in (q.strip() for q in keys.get("pap", "").split(","))
                  if p and p.lower() not in KNOWN_PAPERS]
     if bad_paper:
-        issues.append((Severity.WARN, "unknown paper in pap: " + ", ".join(bad_paper)
-                       + " (known: " + ", ".join(sorted(KNOWN_PAPERS)) + ")"))
+        issues.append(Issue(Severity.WARN, "unknown-paper",
+                            "unknown paper in pap: " + ", ".join(bad_paper)
+                            + " (known: " + ", ".join(sorted(KNOWN_PAPERS)) + ")"))
 
     met = keys.get("met", "").strip()
     if "met" in keys and not METER_VALUE.fullmatch(met):
-        issues.append((Severity.ERROR, f"met={{{met}}} is not a meter like met={{3/4}}"))
+        issues.append(Issue(Severity.ERROR, "bad-meter", f"met={{{met}}} is not a meter like met={{3/4}}"))
     cap = keys.get("cap", "").strip()
     if "cap" in keys and not CAPO_VALUE.fullmatch(cap):
-        issues.append((Severity.ERROR, f"cap={{{cap}}} is not a fret number like cap={{2}}"))
+        issues.append(Issue(Severity.ERROR, "bad-capo", f"cap={{{cap}}} is not a fret number like cap={{2}}"))
     # A song whose meter changes states each one with \meter in the body.
     if ("met" not in keys and "\\meter{" not in info["text"]
             and song_kind(path) != "tinwhistle" and MEASURE_BAR.search(info["text"])):
-        issues.append((Severity.WARN, "measure bars but no met: the first bar shows no meter"))
+        issues.append(Issue(Severity.WARN, "bars-without-meter",
+                            "measure bars but no met: the first bar shows no meter"))
 
     issues.extend(check_rendering(info))
     issues.extend(check_naming(info))
@@ -405,7 +419,10 @@ def main():
     ap.add_argument("--all", action="store_true", help="also list clean songs")
     ap.add_argument("--missing", help="only report songs missing these field(s), comma-separated")
     ap.add_argument("--no-orphans", action="store_true", help="skip the unreferenced-song check")
-    ap.add_argument("--csv", action="store_true", help="emit CSV of all metadata instead of a report")
+    out = ap.add_mutually_exclusive_group()
+    out.add_argument("--csv", action="store_true", help="emit CSV of all metadata instead of a report")
+    out.add_argument("--json", action="store_true",
+                     help="emit the report as JSON (see docs/tools.md#machine-readable-output)")
     ap.add_argument("--strict", action="store_true", help="exit non-zero on warnings too")
     ap.add_argument("--typos", action="store_true",
                     help="also hint at likely lyric typos (a heuristic; see docs/tools.md)")
@@ -431,6 +448,21 @@ def main():
     if args.missing:
         missing_filter = [s.strip() for s in args.missing.split(",") if s.strip()]
 
+    if missing_filter is not None:
+        rows = []
+        for f, info in parsed:
+            miss = [k for k in missing_filter if not info["keys"].get(k)]
+            if miss:
+                rows.append((os.path.relpath(f, repo_root), info, miss))
+        if args.json:
+            print_json({"tool": "checksongs",
+                        "songs": [{"file": rel, "title": info["title"], "missing": miss}
+                                  for rel, info, miss in rows]})
+            return 0
+        for rel, _, miss in rows:
+            print(f"{rel}\n  ⚠ missing: {', '.join(miss)}")
+        return 0
+
     typos = {}
     if args.typos:
         # The comparison needs the whole songbook, not just the paths scanned.
@@ -439,6 +471,7 @@ def main():
 
     n_err = n_warn = n_clean = 0
     field_present = {k: 0 for k in ALL_FIELDS}
+    reported = []                 # (relative path, info, issues), errors first
 
     for f, info in parsed:
         rel = os.path.relpath(f, repo_root)
@@ -446,30 +479,17 @@ def main():
             if info["keys"].get(k):
                 field_present[k] += 1
 
-        if missing_filter is not None:
-            miss = [k for k in missing_filter if not info["keys"].get(k)]
-            if miss:
-                print(f"{rel}\n  ⚠ missing: {', '.join(miss)}")
-            continue
-
         issues = check_song(f, info)
-        issues += [(Severity.WARN, f"'{w}' is used nowhere else - typo for '{c}'?")
+        issues += [Issue(Severity.WARN, "typo", f"'{w}' is used nowhere else - typo for '{c}'?")
                    for w, c in typos.get(f, [])]
-        errs = [i for i in issues if i[0] == Severity.ERROR]
-        warns = [i for i in issues if i[0] == Severity.WARN]
+        errs = [i for i in issues if i.severity == Severity.ERROR]
+        warns = [i for i in issues if i.severity == Severity.WARN]
         n_err += len(errs)
         n_warn += len(warns)
         if not issues:
             n_clean += 1
-            if args.all:
-                print(f"{rel}\n  ✓ ok")
-            continue
-        print(rel)
-        for sev, msg in errs + warns:
-            print(f"  {SYMBOL[sev]} {msg}")
-
-    if missing_filter is not None:
-        return 0
+        if issues or args.all:
+            reported.append((rel, info, errs + warns))
 
     # Orphan songs: present in songs/ but \input by no project.
     orphans = []
@@ -479,13 +499,38 @@ def main():
             name = input_name(f, repo_root)
             if name is not None and name not in refs:
                 orphans.append(name)
+    orphans.sort()
+    total = len(parsed)
+    status = 1 if n_err or (args.strict and (n_warn or orphans)) else 0
+
+    if args.json:
+        print_json({
+            "tool": "checksongs",
+            "songs": [{"file": rel, "title": info["title"],
+                       "issues": [i._asdict() for i in issues]}
+                      for rel, info, issues in reported],
+            "orphans": None if args.no_orphans else orphans,
+            "summary": {"scanned": total, "clean": n_clean, "errors": n_err,
+                        "warnings": n_warn,
+                        "orphans": None if args.no_orphans else len(orphans)},
+            "fields": field_present,
+        })
+        return status
+
+    for rel, _, issues in reported:
+        if not issues:
+            print(f"{rel}\n  ✓ ok")
+            continue
+        print(rel)
+        for i in issues:
+            print(f"  {SYMBOL[i.severity]} {i.message}")
+
     if orphans:
         print("\nNot referenced by any project (won't appear in any songbook):")
-        for name in sorted(orphans):
+        for name in orphans:
             print(f"  ⚠ {name}")
 
     # Summary
-    total = len(parsed)
     print(f"\n{'='*48}")
     print(f"Scanned {total} songs: {n_clean} clean, {n_err} error(s), {n_warn} warning(s)"
           + (f", {len(orphans)} orphan(s)" if not args.no_orphans else ""))
@@ -496,9 +541,7 @@ def main():
         bar = "#" * round(pct / 5)
         print(f"  {k:<5} {have:>3}/{total}  {pct:5.1f}%  {bar}")
 
-    if n_err or (args.strict and (n_warn or orphans)):
-        return 1
-    return 0
+    return status
 
 
 if __name__ == "__main__":

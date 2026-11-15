@@ -7,9 +7,13 @@ conveniences for after adding songs and before a release. Only `checkpaper.py`
 ever edits files, and only when asked with `--write`.
 
 All of them read song files through one module, `scripts/songfile.py` — comment
-stripping, brace matching, the `\beginsong` prelude and finding the files — so
+stripping, brace matching, the `\beginsong` prelude, finding the files and
+printing `--json` — so
 they cannot drift apart in what they think a song says. It holds no policy: what
 counts as a problem lives in the tool that reports it.
+
+Every tool takes `--json` for a report another program reads instead of a
+person — see [Machine-readable output](#machine-readable-output).
 
 - [`checksongs.py`](#checksongspy--metadata) — metadata and text that will not
   render
@@ -37,6 +41,7 @@ scripts/checksongs.py songs/chords/Ayreon   # check one folder
 | `--missing FIELD[,…]` | report only songs missing those fields |
 | `--no-orphans` | skip the unreferenced-song check |
 | `--csv` | emit CSV of all metadata instead of a report |
+| `--json` | emit the report as JSON ([shape](#checksongspy)) |
 | `--strict` | exit non-zero on warnings and orphans too |
 
 Exit status: 0 clean, 1 errors (or warnings with `--strict`), 2 nothing to scan.
@@ -276,6 +281,7 @@ scripts/checkpaper.py --layout            # build every book; check where its so
 | `--keep` | keep the probe build directories for inspection |
 | `-v` | echo LuaLaTeX's errors |
 | `--strict` | exit non-zero on any disagreement |
+| `--json` | emit the report as JSON ([shape](#checkpaperpy)) |
 
 ### What `pap={}` means
 
@@ -437,4 +443,144 @@ the book has the wrong way round is reported. A deliberate exception is marked
 on the `\input` of the song the book puts first — `\input{Ayreon/DaySixChildhood}
 % checkorder: ok` keeps *Day Six* ahead of *Day Seven*, as the numbers go. A book ordered on purpose some
 other way, such as an album's track order, reports every step it takes.
+
+## Machine-readable output
+
+`--json` swaps the report for one JSON object on stdout, for CI annotations,
+the app or a script of your own. It changes the format only: the other options
+choose what is reported exactly as they do for the text, the exit status is the
+same, and progress and errors stay on stderr — a run that stops before
+reporting (exit status 2, no songbook) prints nothing on stdout. Every object names its `tool`.
+Paths are spelled as the text spells them — relative to the songbook, or as
+given on the command line for `checkorder.py` and `checklyrics.py`. The
+`message` fields are the text report's sentences; a program should go by the
+fields next to them.
+
+### `checksongs.py`
+
+```json
+{"tool": "checksongs",
+ "songs": [{"file": "songs/chords/T/Song.tex", "title": "Song",
+            "issues": [{"severity": "error", "code": "note-naming", "line": 4,
+                        "message": "chord B&: B-flat is plain B in Czech naming ..."}]}],
+ "orphans": ["Ayreon/Day"],
+ "summary": {"scanned": 230, "clean": 172, "errors": 0, "warnings": 62, "orphans": 8},
+ "fields": {"by": 230, "lang": 228, "key": 224}}
+```
+
+`songs` holds the songs with issues, every song with `--all`. `severity` is
+`error` or `warn`; `line` is the first line it was found on, or null when the
+check has no single line. `orphans` (and its count) is null with
+`--no-orphans`. With `--missing` the object is only `songs`, each with a
+`missing` list of fields instead of `issues`. The `code`s are stable:
+
+| code | check |
+|---|---|
+| `parse` | no `\beginsong`, or unbalanced braces in the title or prelude |
+| `song-count`, `unbalanced-song`, `empty-title` | structure |
+| `missing-required`, `missing-recommended` | metadata keys |
+| `unknown-key`, `unknown-lang`, `unknown-paper` | likely typos |
+| `bad-meter`, `bad-capo`, `bars-without-meter` | `met` and `cap` |
+| `no-glyph`, `no-glyph-macro` | a character or macro the font drops |
+| `math-accidental`, `ascii-flat`, `spelled-nochord` | accidentals and N.C. |
+| `note-naming` | B and H against the song's naming |
+| `chord-in-multivoice`, `gtab-no-fingers` | chords and diagrams |
+| `typo` | a `--typos` hint |
+
+### `checkkeys.py`
+
+```json
+{"tool": "checkkeys",
+ "songs": [{"file": "songs/chords/X/Song.tex", "stated": "Dm", "stated_keys": ["Dm"],
+            "detected": "D#m", "class": "mismatch", "margin": 18.5, "runner_up": "F#",
+            "capo": 1, "tuning": 0, "transpose": 0, "modulates": false,
+            "key_from_parts": null, "chords": 129, "split": null}]}
+```
+
+Keys are spelled with sharps in English naming (`A#m`), whatever the song's own
+naming — all but `split.suggest`. `runner_up` is the second-best key of the
+pooled chords, the one `margin` is measured against when no key is written. `class` is one of `match`, `tie`, `relative`, `parallel`, `mismatch`,
+`propose` (no key written) and `no-chords`; `margin` is the score gap of
+[Reading the output](#reading-the-output). `key_from_parts` is the reason the
+parts overrode the pooled chords, and `split` is
+`{"parts": [{"type", "key"}], "suggest"}` when the text report would say
+*try key=…* — `suggest` is ready to paste. The songs listed, and their order,
+follow the text: disagreements by margin, everything with `--all`, proposals
+with `--missing`.
+
+`--explain` lists every song given, adding `naming`, `first`, `last`,
+`ending`, `chord_counts` and the top four `candidates` (`key`, `score`,
+`relative`). `--parts` adds `parts` (each with `type`, `shift` from the home
+level, `cut_short`, the sounding `chords` and its `best` three keys) and
+`pooled` per part type. `--validate` is
+`{"tool", "counts": {class: n}, "agreeing", "graded"}`.
+
+### `checkpaper.py`
+
+Without `--measure` or `--layout`:
+
+```json
+{"tool": "checkpaper",
+ "songs": [{"file": "songs/chords/X/Song.tex", "title": "Song", "pap": ["a4", "a5"]}],
+ "by_declared": {"(none)": 2, "a4,a5": 204},
+ "per_paper": {"a4": 228, "a5": 204},
+ "projects": [{"file": "projects/x/x.tex", "paper": "a5", "songs": 30, "marked": 29,
+               "not_marked": ["X/Song"], "not_scanned": []}]}
+```
+
+`--summary` leaves out `songs`; a project of an unknown class has `paper` null
+and nothing past `songs`.
+
+`--measure PAPER` gives a `measure` object instead: `paper`, `class`, and
+`songs` with every measured song — `pages`, `wide_lines` (`{"part", "line"}`:
+`part` is `song`, whose `line` is the file's, or `chorus` or a numbered part
+type, whose `line` counts from the start of that part), `marked` and `fits` as a `pap` entry would spell them
+(`a5`, `a5x2` or null), and `change`: null when the flag agrees, else `add`,
+`drop`, `tighten` or `offer` (fits a spread nobody has marked). Then
+`not_measured`, a `summary` of the counts the text ends with, and `written`
+with `--write`.
+
+`--layout` gives `layout`, one entry per project (only `file` and a null
+`paper` for a project of an unknown class): `class`, `paper`, `spreads`,
+`songs`, `first_page`, `last_page`, `sheets`, `on_two_pages`,
+`over_two_pages` and `notes`. A note is `{"severity", "kind", "song",
+"message"}` plus the pages concerned; `warn` notes are the problems `--strict`
+counts:
+
+| kind | severity | extra fields |
+|---|---|---|
+| `page-turn` | warn | `pages` |
+| `blank-page` | warn | `page`; `song` is the one after it |
+| `squeezed` | warn | `measured`, `given` |
+| `one-sided` | info | `pages` |
+| `over-two-pages` | info | `pages` |
+| `not-measured` | info | |
+
+### `checklyrics.py`
+
+```json
+{"tool": "checklyrics",
+ "songs": [{"file": "songs/chords/X/Song.tex",
+            "sources": [{"site": "genius.com", "match": 0.93}],
+            "differences": [{"line": 17, "words": "", "alternative": "barbarian",
+                             "before": "runs cold", "after": "cries from",
+                             "sites": ["genius.com"]}]}]}
+```
+
+As in the text, only the words that differ and two words around them —
+never the lyrics. `sites` are the sources agreeing on the difference; `--min`
+still applies.
+
+### `checkorder.py`
+
+```json
+{"tool": "checkorder",
+ "projects": [{"file": "projects/x/x.tex", "songs": 15, "in_order": false,
+               "out_of_order": [{"first": {"title": "All That Was", "input": "Ayreon/AllThatWas"},
+                                 "second": {"title": "The Awareness", "input": "Ayreon/TheAwareness"}}],
+               "error": null}]}
+```
+
+Each pair is one the index lists `first` but the book prints after `second`.
+`error` is `no such file` or `no songs found`, and `in_order` is then null.
 

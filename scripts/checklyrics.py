@@ -24,7 +24,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from songfile import collect_song_files, parse_song  # noqa: E402
+from songfile import collect_song_files, parse_song, print_json  # noqa: E402
 
 AGENT = ("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) "
          "Chrome/126 Safari/537.36")
@@ -143,13 +143,13 @@ def compare(path, info, extra_urls):
     used, votes = [], {}
     for url, page in zip(urls, pages):
         site = urllib.parse.urlparse(url).netloc.removeprefix("www.")
-        if any(u.startswith(site + " ") for u in used):
+        if any(u == site for u, _ in used):
             continue                  # one vote per site
         win = page_window(sung, page)
         sm = difflib.SequenceMatcher(None, sung, win, autojunk=False)
         if not win or sm.ratio() < MIN_MATCH:
             continue
-        used.append(f"{site} {sm.ratio():.2f}")
+        used.append((site, sm.ratio()))
         for op, i1, i2, j1, j2 in sm.get_opcodes():
             a, b = sung[i1:i2], win[j1:j2]
             if op == "equal" or max(len(a), len(b)) > MAX_SPAN or trivial(a, b):
@@ -166,25 +166,37 @@ def main():
                     help="show differences at least N sites agree on (default 2)")
     ap.add_argument("--url", action="append", default=[],
                     help="another page to compare with (repeatable)")
+    ap.add_argument("--json", action="store_true",
+                    help="emit JSON (see docs/tools.md#machine-readable-output)")
     args = ap.parse_args()
 
     files = collect_song_files(args.paths)
     if not files:
         print("No .tex song files found.", file=sys.stderr)
         return 2
+    report = []
     for f in files:
         info = parse_song(f)
         if not info["text"]:
             continue
         song, used, votes = compare(f, info, args.url)
-        print(f"{f}\n  sources: {', '.join(used) if used else 'none found'}")
-        for (i1, i2, alt), sites in sorted(votes.items()):
-            if len(sites) < args.min:
-                continue
-            ctx = lambda lo, hi: " ".join(w for w, _ in song[lo:hi])  # noqa: E731
-            line = song[min(i1, len(song) - 1)][1]
-            print(f"  line {line}: [{ctx(i1, i2)}] -> [{alt}]"
-                  f"   ({ctx(i1 - 2, i1)} … {ctx(i2, i2 + 2)})  {len(sites)}/{len(used)}")
+        ctx = lambda lo, hi: " ".join(w for w, _ in song[lo:hi])  # noqa: E731
+        diffs = [{"line": song[min(i1, len(song) - 1)][1], "words": ctx(i1, i2),
+                  "alternative": alt, "before": ctx(i1 - 2, i1), "after": ctx(i2, i2 + 2),
+                  "sites": sorted(sites)}
+                 for (i1, i2, alt), sites in sorted(votes.items()) if len(sites) >= args.min]
+        report.append({"file": str(f),
+                       "sources": [{"site": site, "match": round(r, 2)} for site, r in used],
+                       "differences": diffs})
+        if args.json:
+            continue
+        sources = ", ".join(f"{site} {r:.2f}" for site, r in used)
+        print(f"{f}\n  sources: {sources or 'none found'}")
+        for d in diffs:
+            print(f"  line {d['line']}: [{d['words']}] -> [{d['alternative']}]"
+                  f"   ({d['before']} … {d['after']})  {len(d['sites'])}/{len(used)}")
+    if args.json:
+        print_json({"tool": "checklyrics", "songs": report})
     return 0
 
 
