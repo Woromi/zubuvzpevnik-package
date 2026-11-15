@@ -561,6 +561,8 @@ within one part — that trips LaTeX's environment checker exactly as it would f
 set via `\setchordwidth`) and tightened vertical spacing. Passed as the
 `[setup]` of `\newSongPartType` it makes any part type chords-only; the built-in
 instrumental is exactly `\newSongPartType[\chordsonly]{instrumental}{}{0}`.
+Inside such a part `\rep{…}` prints only `\ifchorded`: a repeat count of chords
+goes with the chords (`lyric`, `\chordsoff`), not left behind as a lone "(×2)".
 
 There is deliberately **no `\ifchorded` guard**: a chords-only part in a `lyric`
 build simply renders empty. The old guard wrapped only the verse and not its
