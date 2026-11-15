@@ -20,7 +20,7 @@ from collections import Counter
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from songfile import strip_comments  # noqa: E402
+from songfile import songbook_root, strip_comments  # noqa: E402
 
 NAMES_SHARP = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 
@@ -589,9 +589,12 @@ def main():
     ap.add_argument("--all", action="store_true", help="show every song")
     ap.add_argument("--explain", action="store_true", help="show the detector's reasoning")
     ap.add_argument("--parts", action="store_true", help="detect a key per song part")
+    ap.add_argument("--songbook", metavar="DIR",
+                    help="the songbook checkout (default: the one this package sits in, "
+                         "or the one around the working directory)")
     args = ap.parse_args()
 
-    repo = Path(__file__).resolve().parent.parent
+    repo = songbook_root(args.songbook)
     scan = args.paths if args.paths else [repo / "songs" / "chords"]
     files = []
     for p in scan:

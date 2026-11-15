@@ -16,9 +16,9 @@ import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from songfile import main_lang, parse_song, strip_comments  # noqa: E402
+from songfile import main_lang, parse_song, songbook_root, strip_comments  # noqa: E402
 
-REPO = Path(__file__).resolve().parent.parent
+REPO = songbook_root()  # the projects named lie inside it
 SONG_DIRS = [REPO / "songs" / "chords", REPO / "songs" / "tinwhistle"]
 INPUT = re.compile(r"\\input\{([^}]+)\}")
 # "% checkorder: ok" after a song's \input accepts it coming before the song
@@ -64,7 +64,7 @@ def index_order(songs):
         for pos, (title, lang, *_) in enumerate(songs, 1):
             lines += [f"%lang {lang or 'english'}", title, str(pos), f"song1-{pos}.1"]
         sxd.write_text("\n".join(lines) + "\n", encoding="utf-8")
-        cmd = ["texlua", str(REPO / "scripts" / "songidx.lua")]
+        cmd = ["texlua", str(Path(__file__).resolve().parent / "songidx.lua")]
         loc = czech_locale()
         if loc:
             cmd += ["-l", loc]

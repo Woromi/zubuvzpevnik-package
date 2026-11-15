@@ -1,5 +1,7 @@
 # Building and releasing
 
+> **Where this lives.** The package, these scripts and docs are the `zubuvzpevnik` repository. A songbook checkout (ZubuvZpevnik) has it as a submodule at `zubuvzpevnik/`, so from the songbook the commands below are `zubuvzpevnik/scripts/<tool>`; the tools find the songbook above the package, or take `--songbook DIR`.
+
 ## Prerequisites
 
 ```bash
@@ -86,7 +88,7 @@ Options, passed through to `scripts/build.sh`:
 
 `-l` and `-e` cannot be combined. A song with no `lang` key is kept by `-e` and
 dropped by `-l`; see
-[`zubuvzpevnik/README.md`](../zubuvzpevnik/README.md#language-and-filtering).
+[`README.md`](../README.md#language-and-filtering).
 Example — a Czech/Slovak-only variant:
 
 ```bash

@@ -1,5 +1,7 @@
 # Developer tools
 
+> **Where this lives.** The package, these scripts and docs are the `zubuvzpevnik` repository. A songbook checkout (ZubuvZpevnik) has it as a submodule at `zubuvzpevnik/`, so from the songbook the commands below are `zubuvzpevnik/scripts/<tool>`; the tools find the songbook above the package, or take `--songbook DIR`.
+
 Five tools under `scripts/`. None of them affects the build; all are
 conveniences for after adding songs and before a release. Only `checkpaper.py`
 ever edits files, and only when asked with `--write`.

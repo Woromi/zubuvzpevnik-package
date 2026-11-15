@@ -17,6 +17,7 @@ import unicodedata
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from songfile import songbook_root  # noqa: E402
 from songfile import (collect_song_files, input_name, main_lang,  # noqa: E402
                       parse_song, song_langs, strip_comments)
 
@@ -408,9 +409,12 @@ def main():
     ap.add_argument("--strict", action="store_true", help="exit non-zero on warnings too")
     ap.add_argument("--typos", action="store_true",
                     help="also hint at likely lyric typos (a heuristic; see docs/tools.md)")
+    ap.add_argument("--songbook", metavar="DIR",
+                    help="the songbook checkout (default: the one this package sits in, "
+                         "or the one around the working directory)")
     args = ap.parse_args()
 
-    repo_root = Path(__file__).resolve().parent.parent
+    repo_root = songbook_root(args.songbook)
     scan = args.paths if args.paths else [repo_root / "songs"]
     files = collect_song_files(scan)
     if not files:

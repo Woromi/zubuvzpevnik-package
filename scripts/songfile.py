@@ -4,6 +4,7 @@ No policy lives here -- only what all three tools under scripts/ need to
 read the song database the same way. See docs/tools.md.
 """
 
+import sys
 from pathlib import Path
 
 
@@ -203,3 +204,28 @@ def input_name(path, repo_root):
         except ValueError:
             continue
     return None
+
+
+# ---- Where things are ----
+# The package (this repo) and the songbook it serves live apart: the songbook has the package
+# as a submodule at <songbook>/zubuvzpevnik, and the app bundles a copy of its own. The tools
+# take the songbook from --songbook, else the nearest folder with songs/chords above the
+# package or above the working directory.
+
+PACKAGE_DIR = Path(__file__).resolve().parent.parent
+
+
+def songbook_root(explicit=None):
+    """The songbook checkout: `explicit` (from --songbook), else the nearest folder above this
+    package or above the working directory that has songs/chords. Exits with a hint when there
+    is none."""
+    if explicit:
+        root = Path(explicit).resolve()
+        if not (root / "songs" / "chords").is_dir():
+            sys.exit(f"{root} has no songs/chords: --songbook has to name the songbook checkout")
+        return root
+    for start in (PACKAGE_DIR, Path.cwd().resolve()):
+        for candidate in (start, *start.parents):
+            if (candidate / "songs" / "chords").is_dir():
+                return candidate
+    sys.exit("No songbook found above the package or the working directory: pass --songbook DIR")

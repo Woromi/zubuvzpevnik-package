@@ -22,6 +22,7 @@ import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from songfile import PACKAGE_DIR, songbook_root  # noqa: E402
 from songfile import (collect_song_files, find_matching, input_name,  # noqa: E402
                       parse_song, strip_comments)
 
@@ -243,7 +244,7 @@ def build_env(repo_root, builddir, extra=None):
         (builddir / "img").symlink_to(repo_root / "img")
     env = dict(os.environ)
     env["TEXINPUTS"] = os.pathsep.join(
-        [".", *(str(p) for p in extra or []), str(repo_root / "zubuvzpevnik"),
+        [".", *(str(p) for p in extra or []), str(PACKAGE_DIR),
          str(repo_root / "songs" / "chords"),
          str(repo_root / "songs" / "tinwhistle"), env.get("TEXINPUTS", "")])
     env["max_print_line"] = "120"
@@ -622,6 +623,9 @@ def main():
     ap.add_argument("--keep", action="store_true", help="keep the probe builds")
     ap.add_argument("-v", "--verbose", action="store_true", help="show lualatex errors")
     ap.add_argument("--strict", action="store_true", help="exit non-zero on any disagreement")
+    ap.add_argument("--songbook", metavar="DIR",
+                    help="the songbook checkout (default: the one this package sits in, "
+                         "or the one around the working directory)")
     args = ap.parse_args()
 
     if args.write and not args.measure:
@@ -629,7 +633,7 @@ def main():
     if args.layout and args.paths:
         ap.error("--layout measures whole books, so it takes no paths")
 
-    repo_root = Path(__file__).resolve().parent.parent
+    repo_root = songbook_root(args.songbook)
     scan = args.paths if args.paths else [repo_root / "songs"]
     # Resolved, so input_name() works whether the caller typed a relative path.
     files = [f.resolve() for f in collect_song_files(scan)]

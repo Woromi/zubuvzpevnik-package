@@ -1,5 +1,7 @@
 # Zubův zpěvník
 
+This repository is the package, with its build scripts (`scripts/`: `build.sh`, the index sorter, `checkpaper.py` and the song linters) and the maintainer docs (`docs/`). The songs and the printed books live in the ZubuvZpevnik repository, which has this one as a submodule at `zubuvzpevnik/`; the Zpěvníkář app bundles its own copy. See `docs/building.md` for building a book and `docs/tools.md` for the linters.
+
 A customization of the [songs](https://songs.sourceforge.net/) LaTeX package, styled to look like my old songbook originally written in Word.
 
 To use this package in your own LaTeX documents, make it visible to LaTeX one of two ways: run `scripts/install.sh` to copy it into your home TeX tree (`~/texmf/tex/latex/`; `scripts/uninstall.sh` removes it again), or add this directory to `TEXINPUTS` without copying — the approach this repo's build scripts use. It locates its own LilyPond includes either way.
