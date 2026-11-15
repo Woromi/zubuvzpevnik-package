@@ -255,7 +255,7 @@ separately.
 
 ### Editing song files
 
-`latexindent.yaml` in the repo root configures `latexindent` for song sources:
+`latexindent.yaml` at the package root configures `latexindent` for song sources:
 `\[...]` is a chord rather than display math, so latexindent's `\[ \]` handler
 is switched off, and the `\beginX … \endX` song parts are declared as indentable
 blocks — the pattern excludes real `\begin{...}` environments and
@@ -263,20 +263,22 @@ blocks — the pattern excludes real `\begin{...}` environments and
 two. Indentation is 4 spaces, matching the existing song metadata, rather than
 latexindent's default tab. Formatting a song this way is rendering-neutral.
 
+From the songbook, where the package is the `zubuvzpevnik/` submodule:
+
 ```bash
-latexindent -l latexindent.yaml songs/chords/Artist/Song.tex
+latexindent -l zubuvzpevnik/latexindent.yaml songs/chords/Artist/Song.tex
 ```
 
 In VS Code / VSCodium with LaTeX Workshop, point the formatter at it:
 
 ```json
 "latex-workshop.formatting.latexindent.args": [
-    "-c", "%DIR%/", "-l=%WORKSPACE_FOLDER%/latexindent.yaml", "%TMPFILE%"
+    "-c", "%DIR%/", "-l=%WORKSPACE_FOLDER%/zubuvzpevnik/latexindent.yaml", "%TMPFILE%"
 ]
 ```
 
-That is what the committed `.vscode/settings.json` uses, so it works in any
-clone. (`latex-workshop.formatting.latexindent.args` is the current setting
+That is what the songbook's committed `.vscode/settings.json` uses, so it works
+in any clone of it. (`latex-workshop.formatting.latexindent.args` is the current setting
 name; the bare `latex-workshop.latexindent.args` is deprecated.)
 
 `%WORKSPACE_FOLDER%` is the *first* workspace folder, and empty when a file is
