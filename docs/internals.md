@@ -95,6 +95,16 @@ it apart from the lyric it trails the way chords and the `R:` marker are set
 apart. The times sign has to be the body font's own — `songs`' is `\char2` of
 cmsy, a font with no bold series, so it stays light however it is wrapped.
 
+**Scripts without a font.** Open Sans and Roboto Mono have no kana or kanji,
+and `\babelfont[japanese]` would not help: in a `lang={japanese}` song it
+would set the whole song, Latin romaji included, in the CJK font. Instead the
+three families carry a luaotfload fallback (`RawFeature={fallback=…}`) to
+Noto Sans CJK JP, so a glyph the font lacks comes from there wherever it
+stands — title, `by`, index — with no markup. A fallback font that cannot be
+found makes every font using it fail to load, so `\IfFontExistsTF` checks
+first and, without it, points the chain back at Open Sans and warns. Hebrew
+keeps `\babelfont[hebrew]`: it needs `\foreignlanguage` anyway, for direction.
+
 **LilyPond include path.** A `\directlua` block asks kpse where
 `zubuvzpevnik.sty` was found and appends that directory's `lilypond/` to
 lyluatex's `includepaths`. That is what lets a song fragment write

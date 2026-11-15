@@ -66,8 +66,19 @@
 % ==========================
 % Fonts
 % ==========================
-\babelfont{rm}{Open Sans}
-\babelfont{sf}{Open Sans}
+% Glyphs a font lacks (kana, kanji) come from Noto Sans CJK JP; see
+% docs/internals.md#scripts-without-a-font.
+% Without the font the chain points back at Open Sans: a fallback that cannot
+% load takes every font down with it.
+\RequirePackage{fontspec}% \IfFontExistsTF; babel would load it anyway
+\IfFontExistsTF{Noto Sans CJK JP}%
+	{\def\zub@fallbackfont{Noto Sans CJK JP}}%
+	{\def\zub@fallbackfont{Open Sans}%
+	 \PackageWarningNoLine{zubuvzpevnik}{Noto Sans CJK JP not found; Japanese
+		and Chinese characters will not print}}
+\directlua{luaotfload.add_fallback("zubfallback", {"\zub@fallbackfont:mode=node;"})}
+\babelfont{rm}[RawFeature={fallback=zubfallback}]{Open Sans}
+\babelfont{sf}[RawFeature={fallback=zubfallback}]{Open Sans}
 % HyphenChar: fontspec loads a monospaced font with hyphenation off, and lyrics
 % are set in tt -- so without it nothing hyphenates and songs' chord-split hyphen
 % (\[C]lo\[G/B]ne\[Am]ly) is never drawn. It belongs to the family, so it holds
@@ -81,7 +92,7 @@
 \ExplSyntaxOn
 \msg_redirect_name:nnn { fontspec } { only-xetex-feature } { none }
 \ExplSyntaxOff
-\babelfont{tt}[HyphenChar={-}]{Roboto Mono}
+\babelfont{tt}[HyphenChar={-},RawFeature={fallback=zubfallback}]{Roboto Mono}
 \babelfont[hebrew]{rm}{FreeSans}
 
 % ==========================

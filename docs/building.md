@@ -6,7 +6,7 @@
 sudo apt-get install texlive-luatex texlive-latex-base texlive-latex-recommended \
     texlive-latex-extra texlive-plain-generic texlive-music texlive-fonts-extra \
     texlive-font-utils texlive-extra-utils texlive-lang-czechslovak lilypond \
-    fonts-open-sans fonts-freefont-otf unifont poppler-utils mupdf-tools
+    fonts-open-sans fonts-freefont-otf fonts-noto-cjk unifont poppler-utils mupdf-tools
 ```
 
 | Package | Provides |
@@ -18,6 +18,7 @@ sudo apt-get install texlive-luatex texlive-latex-base texlive-latex-recommended
 | `poppler-utils` | `pdfinfo`, used to check the booklet page count |
 | `mupdf-tools` | `mutool`, which repairs the A5 book's print file: `pdfunite` leaves its merge with a broken cross-reference table that viewers fix silently but a printer may not |
 | `lilypond` | engraves the embedded sheet music |
+| `fonts-noto-cjk` | Noto Sans CJK JP, the fallback for kana and kanji (a Japanese band name); without it they are left out with a warning |
 
 If the list ever drifts out of date, `texlive-full` instead of the `texlive-*`
 packages always works.

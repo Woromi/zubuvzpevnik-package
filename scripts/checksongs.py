@@ -92,7 +92,7 @@ MEASURE_BAR = re.compile(r"(?<!\\)\|")
 # Recognised languages; anything else is flagged as a likely typo.
 KNOWN_LANGS = {
     "czech", "slovak", "english", "german", "french", "spanish",
-    "italian", "polish", "hungarian", "latin", "quenya", "hebrew",
+    "italian", "polish", "hungarian", "latin", "quenya", "hebrew", "japanese",
 }
 
 # Paper sizes pap={} may name; the same list drives scripts/checkpaper.py. The
