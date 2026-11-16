@@ -585,6 +585,10 @@ set via `\setchordwidth`) and tightened vertical spacing. Passed as the
 instrumental is exactly `\newSongPartType[\chordsonly]{instrumental}{}{0}`.
 Inside such a part `\rep{…}` prints only `\ifchorded`: a repeat count of chords
 goes with the chords (`lyric`, `\chordsoff`), not left behind as a lone "(×2)".
+The repeat marks' dots (`\SB@repcolon`) take songs' lyrics-only form, one
+`:`: chorded, songs stacks two at half the line height to span chords over
+lyrics, and on the one short row of a chords-only line they merged into three
+dots.
 
 There is deliberately **no `\ifchorded` guard**: a chords-only part in a `lyric`
 build simply renders empty. The old guard wrapped only the verse and not its
