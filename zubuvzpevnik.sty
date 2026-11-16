@@ -195,6 +195,16 @@
 }
 
 % ==========================
+% Song order in a book
+% ==========================
+% \beginkeeporder ... \endkeeporder around \input lines: the songs keep the
+% order they are written in, and the block sorts by its first song (checkorder.py,
+% the app's Sort). Prints nothing and opens no group; see docs/internals.md.
+\newcommand{\beginkeeporder}{}
+% \newcommand refuses names starting with "end".
+\def\endkeeporder{}
+
+% ==========================
 % Page padding
 % ==========================
 % Blank pages until the document is a multiple of #1 pages, counted from the

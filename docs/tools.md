@@ -439,10 +439,13 @@ the order its title index lists them. It does not reimplement the sort: it
 feeds the project's titles to `songidx.lua` with the same Czech locale
 `buildindex.sh` uses, so Czech collation and the English articles sorted past
 (*The Bard's Song* under B) come out exactly as in the printed index. Each pair
-the book has the wrong way round is reported. A deliberate exception is marked
-on the `\input` of the song the book puts first — `\input{Ayreon/DaySixChildhood}
-% checkorder: ok` keeps *Day Six* ahead of *Day Seven*, as the numbers go. A book ordered on purpose some
-other way, such as an album's track order, reports every step it takes.
+the book has the wrong way round is reported. Songs that belong together in
+another order go between `\beginkeeporder` and `\endkeeporder` (README, *Song
+order*): they keep their written order, and the block is checked as one entry,
+sorted by its first song — *Day Six* stays ahead of *Day Seven*, as the numbers
+go. (The `% checkorder: ok` comment of earlier versions is no longer read.) A book
+ordered on purpose some other way, such as an album's track order, reports every
+step it takes, unless the album is a block.
 
 ## Machine-readable output
 
@@ -524,7 +527,7 @@ Without `--measure` or `--layout`:
  "songs": [{"file": "songs/chords/X/Song.tex", "title": "Song", "pap": ["a4", "a5"]}],
  "by_declared": {"(none)": 2, "a4,a5": 204},
  "per_paper": {"a4": 228, "a5": 204},
- "projects": [{"file": "projects/x/x.tex", "paper": "a5", "songs": 30, "marked": 29,
+ "projects": [{"file": "songbooks/x/x.tex", "paper": "a5", "songs": 30, "marked": 29,
                "not_marked": ["X/Song"], "not_scanned": []}]}
 ```
 
@@ -575,7 +578,7 @@ still applies.
 
 ```json
 {"tool": "checkorder",
- "projects": [{"file": "projects/x/x.tex", "songs": 15, "in_order": false,
+ "projects": [{"file": "songbooks/x/x.tex", "songs": 15, "in_order": false,
                "out_of_order": [{"first": {"title": "All That Was", "input": "Ayreon/AllThatWas"},
                                  "second": {"title": "The Awareness", "input": "Ayreon/TheAwareness"}}],
                "error": null}]}

@@ -3,7 +3,9 @@
 
 Read-only developer tool. The index is sorted by songidx.lua (Czech collation,
 English articles rotated to the end), so the check sorts the project's songs
-with that very script rather than guessing at its rules. See docs/tools.md.
+with that very script rather than guessing at its rules. Songs between
+\\beginkeeporder and \\endkeeporder keep their written order, and the block sorts
+by its first song. See docs/tools.md.
 
 Usage: scripts/checkorder.py [--json] PROJECT.tex ...
 Exit status: 0 = in order, 1 = out of order, 2 = no songs found.
@@ -22,10 +24,8 @@ from songfile import (main_lang, parse_song, print_json, songbook_root,  # noqa:
 
 REPO = songbook_root()  # the projects named lie inside it
 SONG_DIRS = [REPO / "songs" / "chords", REPO / "songs" / "tinwhistle"]
-INPUT = re.compile(r"\\input\{([^}]+)\}")
-# "% checkorder: ok" after a song's \input accepts it coming before the song
-# the index would put first -- a deliberate exception such as Day Six, Day Seven.
-ACCEPTED = re.compile(r"\\input\{([^}]+)\}\s*%.*checkorder:\s*ok")
+# An \input, or the start or end of a block that keeps its order.
+TOKEN = re.compile(r"\\input\{([^}]+)\}|\\(beginkeeporder|endkeeporder)(?![A-Za-z])")
 ENTRY = re.compile(r"\\idxentry\{.*?\}\{\\songlink\{[^}]*\}\{(\d+)\}\}")
 
 
@@ -40,13 +40,20 @@ def czech_locale():
 
 
 def book_songs(project):
-    """(title, lang, input name, accepted) of every song the project inputs,
-    in book order."""
-    raw = project.read_text(encoding="utf-8")
-    accepted = set(ACCEPTED.findall(raw))
-    text = strip_comments(raw)
+    """(title, lang, input name, follows) of every song the project inputs, in
+    book order; `follows` is true for a song after the first of a keep-order
+    block (it goes with the song before it, not by the index)."""
+    text = strip_comments(project.read_text(encoding="utf-8"))
     songs = []
-    for name in INPUT.findall(text):
+    in_block, block_started = False, False
+    for m in TOKEN.finditer(text):
+        if m.group(2) == "beginkeeporder":
+            in_block, block_started = True, False
+            continue
+        if m.group(2) == "endkeeporder":
+            in_block = False
+            continue
+        name = m.group(1)
         path = next((d / f"{name}.tex" for d in SONG_DIRS
                      if (d / f"{name}.tex").exists()), None)
         if path is None:
@@ -54,7 +61,8 @@ def book_songs(project):
         info = parse_song(path)
         if info["title"]:
             songs.append((info["title"], main_lang(info["keys"]), name,
-                          name in accepted))
+                          in_block and block_started))
+            block_started = block_started or in_block
     return songs
 
 
@@ -102,10 +110,11 @@ def main():
             print(f"{project}: no songs found", file=sys.stderr)
             status = max(status, 2)
             continue
-        order = index_order(songs)
-        # a pair is excused when the song the book puts first carries the mark
-        wrong = [(a, b) for a, b in zip(order, order[1:])
-                 if b < a and not songs[b - 1][3]]
+        # One entry per song outside blocks and per block (its first song);
+        # the songs that follow inside a block are not sorted.
+        leaders = [i for i, song in enumerate(songs) if not song[3]]
+        order = [leaders[p - 1] + 1 for p in index_order([songs[i] for i in leaders])]
+        wrong = [(a, b) for a, b in zip(order, order[1:]) if b < a]
         record["songs"], record["in_order"] = len(songs), not wrong
         # the index lists the song at book position a first, b next
         record["out_of_order"] = [

@@ -340,6 +340,18 @@ it reflows 40 pages of A4. Note `\SB@colorbox` pads with a hardcoded `\kern3\p@`
 rather than `\fboxsep` under the `noshading` option all our classes pass, so
 `\fboxsep` is not the knob it looks like.
 
+### Song order blocks
+
+`\beginkeeporder` and `\endkeeporder` (in `zubuvzpevnik.sty`) are empty macros:
+they mark songs that keep their written order inside a book, for the tools that
+sort or check the order (`checkorder.py`, the Zpěvníkář app), and do nothing in
+the PDF. They are a pair of commands rather than an environment because
+`\begin{…}` opens a TeX group around the `\input`s, and the songs package's
+per-song state has no business being scoped by a book's ordering note.
+`\endkeeporder` is set with `\def`: `\newcommand` refuses names starting with
+`end`. A book typeset with and without a block is identical (text and pixels,
+checked 2026-11-16).
+
 ### PDF bookmarks
 
 songs.sty bookmarks each song at level 1, or at level 2 once `\c@section` is

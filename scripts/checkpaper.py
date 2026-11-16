@@ -22,7 +22,7 @@ import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from songfile import PACKAGE_DIR, songbook_root  # noqa: E402
+from songfile import PACKAGE_DIR, books_dir, songbook_root  # noqa: E402
 from songfile import (collect_song_files, find_matching, input_name,  # noqa: E402
                       parse_song, print_json, strip_comments)
 
@@ -136,7 +136,7 @@ def project_files(repo_root):
     file only says which page a song is on once the environments are told
     apart."""
     out = []
-    for tex in sorted((repo_root / "projects").rglob("*.tex")):
+    for tex in sorted(books_dir(repo_root).rglob("*.tex")):
         text = strip_comments(tex.read_text(encoding="utf-8", errors="replace"))
         m = DOCCLASS_RE.search(text)
         if not m:

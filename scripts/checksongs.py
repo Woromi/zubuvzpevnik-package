@@ -18,7 +18,7 @@ from collections import namedtuple
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from songfile import songbook_root  # noqa: E402
+from songfile import books_dir, songbook_root  # noqa: E402
 from songfile import (collect_song_files, input_name, main_lang,  # noqa: E402
                       parse_song, print_json, song_langs, strip_comments)
 
@@ -393,7 +393,7 @@ def referenced_inputs(repo_root):
     """Set of \\input{...} targets across all project .tex files. Comments are
     stripped first: a song parked behind a `%` is in no songbook."""
     refs = set()
-    proj = repo_root / "projects"
+    proj = books_dir(repo_root)
     if not proj.is_dir():
         return refs
     pat = re.compile(r"\\input\{([^}]*)\}")

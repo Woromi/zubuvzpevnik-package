@@ -216,6 +216,13 @@ def input_name(path, repo_root):
 PACKAGE_DIR = Path(__file__).resolve().parent.parent
 
 
+def books_dir(repo_root):
+    """The folder of the songbook's books: songbooks/, or projects/ in a
+    songbook from before it was renamed."""
+    books = Path(repo_root) / "songbooks"
+    return books if books.is_dir() else Path(repo_root) / "projects"
+
+
 def songbook_root(explicit=None):
     """The songbook checkout: `explicit` (from --songbook), else the nearest folder above this
     package or above the working directory that has songs/chords. Exits with a hint when there

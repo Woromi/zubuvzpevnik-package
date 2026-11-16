@@ -50,11 +50,11 @@ the front matter onto a third page and break the
 Each project has its own script:
 
 ```bash
-projects/velkyzpevnik/build.sh       # Main A4 songbook → build/velkyzpevnik.pdf
-projects/malyzpevnik/build.sh        # A5 hardback songbook → build/malyzpevnik.pdf + build/malyzpevnikBook.pdf
-projects/tabory/2026/build.sh        # A5 camp songbook → build/tabor2026.pdf + build/tabor2026Booklet.pdf
-projects/tinwhistle/build.sh         # Tin whistle sheet music → build/tinwhistle.pdf
-projects/interpreti/ayreon/build.sh  # Single-artist songbook → build/ayreon.pdf
+songbooks/velkyzpevnik/build.sh       # Main A4 songbook → build/velkyzpevnik.pdf
+songbooks/malyzpevnik/build.sh        # A5 hardback songbook → build/malyzpevnik.pdf + build/malyzpevnikBook.pdf
+songbooks/tabory/2026/build.sh        # A5 camp songbook → build/tabor2026.pdf + build/tabor2026Booklet.pdf
+songbooks/tinwhistle/build.sh         # Tin whistle sheet music → build/tinwhistle.pdf
+songbooks/interpreti/ayreon/build.sh  # Single-artist songbook → build/ayreon.pdf
 ```
 
 Each sets `TEXINPUTS` to reach the package, the shared song database and its own
@@ -69,8 +69,8 @@ again from scratch. The repository root is on `TEXINPUTS` so that
 `\graphicspath{{img/}}`, which resolves against the working directory, still
 finds the cover images from wherever the build runs.
 
-The camp years share one script: `projects/tabory/<year>/build.sh` is a two-line
-wrapper that hands its own directory to `projects/tabory/build.sh`, which derives
+The camp years share one script: `songbooks/tabory/<year>/build.sh` is a two-line
+wrapper that hands its own directory to `songbooks/tabory/build.sh`, which derives
 the job name from it (`2026` → `tabor2026`) and runs the booklet imposition. A
 new camp needs the wrapper copied and nothing else.
 
@@ -92,7 +92,7 @@ dropped by `-l`; see
 Example — a Czech/Slovak-only variant:
 
 ```bash
-projects/velkyzpevnik/build.sh -l czech,slovak -o velkyzpevnikCz
+songbooks/velkyzpevnik/build.sh -l czech,slovak -o velkyzpevnikCz
 ```
 
 ### How the build works
