@@ -47,10 +47,15 @@ end
 -- s is the chorus as \detokenize left it: catcode-12 text, lines split by CR.
 -- Prints the reminder as the same catcode-12 string (TeX turns its chords and
 -- second voice off); nothing if the chorus has no text line. extra (a \rep{n})
--- follows the dots.
-function zubchorus.reminder(s, extra)
+-- follows the dots. lead (a \[chord]) replaces the line's own chords.
+function zubchorus.reminder(s, extra, lead)
   local line = first(s)
   if not line then return end
+  if lead and lead ~= "" then
+    line = line:gsub("\\%[[^%]]*%]", "")
+  else
+    lead = ""
+  end
   -- One line, so its repeat marks would not pair up.
   for _, p in ipairs(LREP) do
     if starts(line, p) then line = line:sub(#p + 1) end
@@ -79,5 +84,5 @@ function zubchorus.reminder(s, extra)
   -- Trailing punctuation (and dots already there) give way to the "...".
   line = line:gsub("[,.;:!?]+$", "")
   if extra and extra ~= "" then extra = " " .. extra else extra = "" end
-  tex.sprint(-2, line .. "..." .. extra .. role)
+  tex.sprint(-2, lead .. line .. "..." .. extra .. role)
 end

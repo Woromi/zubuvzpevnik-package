@@ -178,7 +178,7 @@ The captured chorus can be reprinted later without retyping it:
 | Command | Result |
 |---------|--------|
 | `\insertchorus`  | Reprints the whole chorus (chords and line breaks intact). |
-| `\insertchorus*` | A one-line reminder: the **first source line only**, with **chords and the second voice off**, its **repeat marks** (`\lrep~`, `\rrep`), **chords and second voices after the last word** and **trailing punctuation** (`,` `.` `;` `:` `!` `?`, or dots already there) dropped, and **`...`** appended — before a `\role` label that ends the line, which stays. A `\rep{n}` written right after it joins the same line: `\insertchorus* \rep{2}` gives `R: first line... (×2)`. |
+| `\insertchorus*` | A one-line reminder: the **first source line only**, with **chords and the second voice off**, its **repeat marks** (`\lrep~`, `\rrep`), **chords and second voices after the last word** and **trailing punctuation** (`,` `.` `;` `:` `!` `?`, or dots already there) dropped, and **`...`** appended — before a `\role` label that ends the line, which stays. A `\[chord]` written right after it leads the line in place of the line's own chords — `\insertchorus*\[\nochord]` marks a chorus sung without accompaniment (it follows `\chordsoff` like any chord). A `\rep{n}` written after that joins the same line: `\insertchorus* \rep{2}` gives `R: first line... (×2)`. |
 
 ```latex
 \beginchorus
@@ -188,6 +188,7 @@ The captured chorus can be reprinted later without retyping it:
 ...
 \insertchorus     % => the full chorus again
 \insertchorus*    % => "R:  Refrén první řádek..."
+\insertchorus*\[\nochord]   % => the same line, N.C. above its start
 ```
 
 **Setup before the text.** A second bracket runs commands inside the repeat, before its first line — where a `\chordsoff` at the top of the chorus would go, so it ends with the repeat. Leave the first bracket empty for the latest chorus:

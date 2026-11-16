@@ -740,6 +740,12 @@ so it is part-local like that one. The reminder's `\chordsoff\multivoiceoff`
 is put *before* `setup` on the TeX side (not into the Lua string), so
 `\insertchorus*[][\chordson]` can bring the chords back.
 
+**Lead chord.** A `\[chord]` right after `\insertchorus*` (read with
+`\@ifnextchar\[` by `\zub@short@tail`, shared with `\insertX*`, before the
+`\rep` lookahead) goes to Lua as a third argument: the line loses all its own
+chords and gets that one in front. TeX then leaves out the `\chordsoff`, so the
+chord shows wherever chords show — a lyrics-only book still hides it.
+
 **Numbered choruses.** `\beginchorus[n]` reads its bracket with `\@ifnextchar`
 *before* the grab switches catcodes, and records `n` in `\zub@chorusnum`. After
 the capture the string is also copied, globally, to
