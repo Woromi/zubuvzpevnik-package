@@ -46,11 +46,20 @@
 % Czech and Slovak songs get German note names, everything else English;
 % see docs/internals.md#package-setup. Hidden under \chordsoff, like \musicnote.
 \let\ZUB@lilypondfile\lilypondfile
+% A song re-shaped by \transposesong adds the options that transpose its score
+% (feature/transpozice.cfg).
+\newcommand{\zub@lyopts}{}
 \renewcommand{\lilypondfile}[1]{%
 	\ifchorded
 		\IfSubStr{,czech,slovak,}{,\SB@songlang,}%
-			{\ZUB@lilypondfile[language=deutsch]{#1}}%
-			{\ZUB@lilypondfile{#1}}%
+			{\def\zub@lyopts{language=deutsch}}%
+			{\def\zub@lyopts{}}%
+		\zub@tr@lyopts{#1}%
+		\ifx\zub@lyopts\@empty
+			\ZUB@lilypondfile{#1}%
+		\else
+			\expandafter\ZUB@lilypondfile\expandafter[\zub@lyopts]{#1}%
+		\fi
 	\fi
 }
 
@@ -251,6 +260,8 @@
 \import{feature/}{akordy.cfg}
 % Multi-voice support (second voice, role labels)
 \import{feature/}{hlasy.cfg}
+% Per-book song transposition (\transposesong)
+\import{feature/}{transpozice.cfg}
 
 % ==========================
 % Song parts

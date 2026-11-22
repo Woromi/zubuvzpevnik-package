@@ -17,6 +17,7 @@ Everything here builds **on top of** the `songs` package — its manual still ap
 - [Chords](#chords)
 - [Language and filtering](#language-and-filtering)
 - [Indexes](#indexes)
+- [Transposing a song for one book](#transposing-a-song-for-one-book)
 - [Large vs. small paper](#large-vs-small-paper)
 - [Customization hooks](#customization-hooks)
 - [LilyPond sheet music](#lilypond-sheet-music)
@@ -287,6 +288,29 @@ Zpěvníkář app's Sort read them.
 
 Two indexes are registered: **`obsah`** (by title) and **`obsahAutor`** (by author). The author index lists each author followed by their song titles (`Author --> Title`), with section headings per author. Classes typeset them via `\showindex`/`\insertindex` (see below). Defined in `feature/obsah.cfg`.
 
+## Transposing a song for one book
+
+A book can move a song to another key without touching the song file. The line goes directly above the song's `\input` and applies to that one song:
+
+```latex
+\transposesong{-2}
+\input{Toto/Africa}             % sounds 2 semitones lower, chords re-shaped
+\transposesong[key=Hm]{2}
+\input{Kabat/Colorado}          % ... with the target key named, for spelling
+\transposesong{0}
+\input{Nirvana/ComeAsYouAre}    % no-op: the song stays as written
+```
+
+`N` is the number of semitones the song should **sound** higher (−11 to 11; negative is lower). It adds to whatever `\transpose` the song already has, and `N = 0` does nothing at all.
+
+The song gets new chord shapes, through `songs`' own `\transpose`; its capo stays where the song puts it. Moving the capo instead means changing the song's `cap`, in every book. What follows the chords:
+
+- **LilyPond scores** are transposed by the same `N`, chord names included. A tab note whose string would need a negative fret moves to another string (LilyPond's own choice), so a riff transposed down can change its fingering. Tin whistle scores (those that `\include "tinwhistle.ily"`) are never transposed — their fingerings are for one whistle — and say so in a warning.
+- **`chr` diagrams** are left out, beside the title and in `\insertusedchords`/`\insertallchords`: a diagram fingers the old shape. An inline `\gtab` in the song prints just the transposed name, as `songs` does under any `\transpose`.
+- **Sharps or flats** follow the key the printed shapes are in: the target key (`key=`, or else the song's own `key` moved by `N`) less its `cap` and any uniform `tun` detuning. Sharp keys get sharps, flat keys flats; where both are usual (F♯/G♭ major, D♯/E♭ minor) a `key=` written with `\shrp` or `\flt` decides when the shapes are in that very key. This outranks a `\prefersharps`/`\preferflats` in the song, which was chosen for the old key. A song with no usable `key` keeps `songs`' choice from its first chord.
+
+`key=` is the song's new sounding key, written as a song's `key` is (song's naming, `\shrp`/`\flt`). Besides spelling, it replaces the song's `key` value for anything that reads it. The commands are the Zpěvníkář app's: it computes `N` from each song's `key` and the book's target key.
+
 ## Large vs. small paper
 
 The boolean `\iflargepaper` (true in the A4 class, false in the A5 booklet) drives a few responsive helpers, so the same song source works on both sizes:
@@ -454,7 +478,8 @@ zubuvzpevnik/
 │  ├── obsah.cfg            #   index registration + formatting
 │  ├── metadata.cfg         #   song metadata keys + the prelude box
 │  ├── akordy.cfg           #   capo + chord-diagram styling
-│  └── hlasy.cfg            #   multi-voice (\multivoice, \role)
+│  ├── hlasy.cfg            #   multi-voice (\multivoice, \role)
+│  └── transpozice.cfg      #   per-book song transposition (\transposesong)
 ├── songpart/               # structural song sections
 │  ├── sloka.cfg            #   verse + \newSongPartType (bridge/prechorus/intro/outro)
 │  ├── refren.cfg           #   chorus + \insertchorus / \insertchorus*

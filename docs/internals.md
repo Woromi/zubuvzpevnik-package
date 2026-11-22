@@ -21,6 +21,7 @@ silently doing nothing.
 - [Metadata (`metadata.cfg`)](#metadata-metadatacfg)
 - [Chords (`akordy.cfg`)](#chords-akordycfg)
 - [Multi-voice (`hlasy.cfg`)](#multi-voice-hlasycfg)
+- [Per-book transposition (`transpozice.cfg`)](#per-book-transposition)
 - [Song parts](#song-parts)
 - [The chorus (`refren.cfg`)](#the-chorus-refrencfg)
 - [Document classes and booklet page maths](#document-classes-and-booklet-page-maths)
@@ -40,7 +41,8 @@ zubuvzpevnik/
 │  ├── obsah.cfg          index registration and formatting
 │  ├── metadata.cfg       song keys (key/tun/tem/…) and the prelude
 │  ├── akordy.cfg         capo notation, chord-diagram tweaks
-│  └── hlasy.cfg          multi-voice and role labels
+│  ├── hlasy.cfg          multi-voice and role labels
+│  └── transpozice.cfg    \transposesong (with lua/transpozice.lua)
 ├── songpart/
 │  ├── sloka.cfg          verse, part core, \newSongPartType, chord memory
 │  ├── refren.cfg         chorus restyle + source capture
@@ -520,6 +522,55 @@ and broke with *Extra \else* whenever multi-voice was off.
 
 `\rolestyle` selects a family defined once with `\newfontfamily`; calling
 `\setmainfont` per label would re-read the font each time.
+
+## Per-book transposition
+
+`\transposesong[key=K]{N}` (`transpozice.cfg`, user-facing rules in the
+README) is a book line, so it only records N and its options in globals; the
+song start consumes them. That hook is appended to `\SB@@@beginsong`, after
+songs' reset of `\SB@transposefactor`: re-shaping is then a plain
+`\transpose{N}`, which every part, `\insertchorus` and `^` replays already
+follow, and adds to the song's own `\transpose` as two of those would. The
+amount is kept global for the song: the prelude, which reads it to drop the
+`chr` diagrams, is typeset at `\endsong` outside the song's group (songs.sty
+`\SB@endsong`), so a local would be gone by then. It is also why the diagrams
+are dropped there and not at song start — `\usedchords` is set by the key
+outside the song box.
+
+There is no capo variant: the capo is the song's `cap`, and moving it is a
+change to the song.
+
+**Spelling.** songs picks sharps or flats from the first chord after a
+`\transpose` (`\SB@setkeysig`), which can go either way. Re-shaping instead
+pins the song through `lokalizace.cfg`'s song pin, the one `\prefersharps`
+uses, and marks it so a `\prefersharps` later in the song cannot replace it.
+The pin comes from the key the printed *home* shapes are in: the target sounding
+key less `cap` (unless `transposecapos` makes the capo a transposition) less a
+uniform `tun` detuning — the same arithmetic `checkkeys.py` does the other way.
+The song's own `\transpose` drops out of that sum, since the written chords sit
+at sounding pitch less it and the printed ones at that plus it. A part with its
+own extra `\transpose` keeps the song's pin, as it would under `\prefersharps`.
+Reading the key strings is in `lua/transpozice.lua` (H/B by the song's reading
+convention, which `lang` has already set by the time the hook runs).
+
+**Scores.** lyluatex has no transposition option, and rewriting each `.ly`
+would mean parsing LilyPond. Instead lyluatex's `include_header` option puts an
+include ahead of the score, and that include redefines LilyPond's
+`toplevel-score-handler` to hand on a transposed copy of each score
+(`ly:music-transpose`, so `\chordmode` names and key signatures move too). The
+include is written to lyluatex's `tmpdir` under a name carrying the interval:
+lyluatex hashes a score by its code and options, not by the contents of an
+include, so the name is what makes a transposed score a different cache entry —
+and the `VERSION` in it must be bumped when the Scheme changes. The interval is
+spelled from the old shape key to the new one (both by the sharps/flats rule
+above), so an E-major riff moved up a semitone comes out in F, not E♯; with no
+key known it is spelled from C. A score that includes `tinwhistle.ily` is left
+alone, checked by reading the file in Lua.
+
+Tab notes with an explicit string (`\4`) that would need a negative fret are
+re-strung by LilyPond with a warning in its log. Shifting such scores up an
+octave instead would keep every shape, at frets a guitarist would not choose
+for an open-string riff, and change the octave against the chords.
 
 ## Song parts
 
