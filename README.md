@@ -309,6 +309,8 @@ The song gets new chord shapes, through `songs`' own `\transpose`; its capo stay
 - **`chr` diagrams** are left out, beside the title and in `\insertusedchords`/`\insertallchords`: a diagram fingers the old shape. An inline `\gtab` in the song prints just the transposed name, as `songs` does under any `\transpose`.
 - **Sharps or flats** follow the key the printed shapes are in: the target key (`key=`, or else the song's own `key` moved by `N`) less its `cap` and any uniform `tun` detuning. Sharp keys get sharps, flat keys flats; where both are usual (F♯/G♭ major, D♯/E♭ minor) a `key=` written with `\shrp` or `\flt` decides when the shapes are in that very key. This outranks a `\prefersharps`/`\preferflats` in the song, which was chosen for the old key. A song with no usable `key` keeps `songs`' choice from its first chord.
 
+**Under `transposecapos`** the capo is a transposition too, so the shapes a song prints move by its capo as well, without any `\transposesong`. Its LilyPond scores follow, by the capo in effect where the score stands plus any `N`, and its `chr` diagrams are left out, as above. That is how a book is printed *without capo*: every chord at sounding pitch.
+
 `key=` is the song's new sounding key, written as a song's `key` is (song's naming, `\shrp`/`\flt`). Besides spelling, it replaces the song's `key` value for anything that reads it. The commands are the Zpěvníkář app's: it computes `N` from each song's `key` and the book's target key.
 
 ## Large vs. small paper

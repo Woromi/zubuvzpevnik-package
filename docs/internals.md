@@ -567,6 +567,16 @@ above), so an E-major riff moved up a semitone comes out in F, not E♯; with no
 key known it is spelled from C. A score that includes `tinwhistle.ily` is left
 alone, checked by reading the file in Lua.
 
+A score moves by `\zub@tr@shift`, the book's N plus, under
+`transposecapos`, the fret of the last `\capo` (`\zub@tr@capnow`, recorded by
+`akordy.cfg`'s `\capo`): songs' `\capo` is then a `\transpose`, so the
+printed shapes have left the score's shapes by that much. It is the last fret
+rather than the sum, because a score is written for the capo where it stands.
+The reset of `\zub@tr@capnow` is prepended to `\SB@@@beginsong`, since the
+`cap` key's `\capo` runs before the appended song-start hook. The same shift
+decides whether the `chr` diagrams are dropped, so the Lua song-start call runs
+for every song, keeping the keys a score's interval is spelled from.
+
 Tab notes with an explicit string (`\4`) that would need a negative fret are
 re-strung by LilyPond with a warning in its log. Shifting such scores up an
 octave instead would keep every shape, at frets a guitarist would not choose

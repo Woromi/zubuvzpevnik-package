@@ -84,36 +84,36 @@ local function interval(from_pc, from_sharps, to_pc, to_sharps, n)
   return oct, dn, da
 end
 
--- Song start: a.n semitones of re-shaping. Works out the key the printed home
--- shapes are in (target sounding key, less capo and detuning) and returns the
--- accidental pin for it, "sharps", "flats" or "" when no key is known.
+-- Song start, every song: reads its keys once. a.n is the book's re-shaping.
+-- Returns the accidental pin for the key the printed home shapes are in
+-- (target sounding key, less capo and detuning): "sharps", "flats", or "" when
+-- nothing is re-shaped or no key is known.
 function zubtr.song(a)
   local german = a.german
   local book = readkey(a.bookkey, german)
   local own = readkey(a.key, german)
-  local target
-  if book then
-    target = book
-  elseif own then
-    target = { pc = (own.pc + a.n) % 12, minor = own.minor, acc = 0 }
-  end
-  local offset = (a.transcapos and 0 or (tonumber(a.cap) or 0)) + readtuning(a.tun, german)
+  local cap, tun = tonumber(a.cap) or 0, readtuning(a.tun, german)
   local cur = { n = a.n }
-  if target then
-    local pc = (target.pc - offset) % 12
-    local sharps = sharpkey(pc, target.minor)
-    -- A spelling written in key= wins where it is the printed key itself.
-    if book and offset % 12 == 0 and book.acc ~= 0 then sharps = book.acc > 0 end
-    local from = (pc - a.n) % 12
-    cur.pin = sharps and "sharps" or "flats"
-    cur.oct, cur.step, cur.alt = interval(from, sharpkey(from, target.minor), pc, sharps, a.n)
-  else
-    cur.pin = ""
-    local pc = a.n % 12
-    cur.oct, cur.step, cur.alt = interval(0, true, pc, sharpkey(pc, false), a.n)
+  -- The key the scores are written in: shapes under the song's own capo.
+  if own then
+    cur.from, cur.minor = (own.pc - cap - tun) % 12, own.minor
+  elseif book then
+    cur.from, cur.minor = (book.pc - a.n - cap - tun) % 12, book.minor
   end
+  if book then cur.book = book end
   zubtr.cur = cur
-  return cur.pin
+  if a.n == 0 or not cur.from then return "" end
+  -- transposecapos prints the capo's shapes at sounding pitch.
+  local pc = (cur.from + a.n + (a.transcapos and cap or 0)) % 12
+  return zubtr.sharps(pc) and "sharps" or "flats"
+end
+
+-- Whether the current song's key on pitch class pc is spelled with sharps; on
+-- the book's key= itself, an accidental written there decides.
+function zubtr.sharps(pc)
+  local cur, book = zubtr.cur, zubtr.cur.book
+  if book and book.acc ~= 0 and book.pc == pc then return book.acc > 0 end
+  return sharpkey(pc, cur.minor)
 end
 
 -- Header for a re-shaped song's scores: a toplevel-score-handler that
@@ -144,25 +144,34 @@ local function readfile(name)
   return text
 end
 
--- lyluatex options for \lilypondfile{file} in the current song: "" when it is
--- not re-shaped, else an include_header naming the transposing header.
-function zubtr.lyopts(file)
+-- lyluatex options for \lilypondfile{file} in the current song, whose shapes
+-- have moved by shift semitones: "" when they have not, else an
+-- include_header naming the transposing header.
+function zubtr.lyopts(file, shift)
   local cur = zubtr.cur
-  if not cur or cur.n == 0 then return "" end
+  if not cur or shift == 0 then return "" end
   local text = readfile(file)
   if text and text:find('\\include%s*"tinwhistle%.ily"') then
     tex.sprint("\\PackageWarning{zubuvzpevnik}{Score '" .. file .. "' is a tin"
-      .. " whistle part: its fingerings are for one whistle, so \\string"
-      .. "\\transposesong leaves it as written}")
+      .. " whistle part: its fingerings are for one whistle, so it is left"
+      .. " as written}")
     return ""
   end
-  local alt = cur.alt == 0 and "0" or (cur.alt .. "/2")
+  local oct, step, da
+  if cur.from then
+    local to = (cur.from + shift) % 12
+    oct, step, da = interval(cur.from, sharpkey(cur.from, cur.minor), to,
+      zubtr.sharps(to), shift)
+  else
+    local to = shift % 12
+    oct, step, da = interval(0, true, to, sharpkey(to, false), shift)
+  end
+  local alt = da == 0 and "0" or (da .. "/2")
   local dir = lua_options.get_option("ly", "tmpdir") or "tmp-ly"
   if not lfs.isdir(dir) then lfs.mkdir(dir) end
-  local name = string.format("%s/zubtranspose%d_%d_%d_%d", dir, VERSION,
-    cur.oct, cur.step, cur.alt)
+  local name = string.format("%s/zubtranspose%d_%d_%d_%d", dir, VERSION, oct, step, da)
   local f = io.open(name .. ".ly", "w")
-  f:write(HEADER:format(cur.oct, cur.step, alt))
+  f:write(HEADER:format(oct, step, alt))
   f:close()
   return "include_header=" .. name
 end
